@@ -6,30 +6,30 @@
   <title>DTM‑Events</title>
   <style>
     body {
-      background-color: #121212;
-      color: white;
+      background: #111;
+      color: #fff;
       font-family: 'Segoe UI', sans-serif;
       text-align: center;
+      margin: 0;
       padding: 2rem;
     }
     h1 { color: #66ff66; margin-bottom: 0.5rem; }
-    .btn {
-      padding: 0.8rem 1.4rem;
-      margin: 0.5rem;
-      border: none;
-      border-radius: 5px;
-      font-size: 1rem;
-      cursor: pointer;
-    }
-    .normal { background: #28a745; color: white; }
-    .vip { background: #ffcc00; color: black; }
-    .counter, .timer {
-      margin-top: 2rem;
-      font-size: 1.2rem;
-    }
     select, button {
       font-size: 1rem;
       margin: 0.5rem;
+      padding: 0.6rem 1rem;
+      border: none;
+      border-radius: 5px;
+    }
+    .btn-normal { background: #28a745; color: #fff; }
+    .btn-vip { background: #ffcc00; color: #000; }
+    .counter, .timer {
+      margin-top: 2rem;
+      font-size: 1.1rem;
+    }
+    img.logo {
+      width: 200px;
+      margin-bottom: 1rem;
     }
   </style>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
@@ -37,18 +37,19 @@
 </head>
 <body>
 
-  <img src="dtm-logo.png" alt="DTM Events Logo" width="200">
+  <img src="dtm-logo.png" alt="DTM Events Logo" class="logo">
   <h1>DTM‑Events Ticket Shop</h1>
-  <p>Kies je event en koop je ticket hieronder:</p>
+  <p>Kies een event en koop je ticket:</p>
 
-  <label for="eventSelect">🎪 Selecteer event:</label>
+  <label for="eventSelect">🎪 Event selecteren:</label>
   <select id="eventSelect">
     <option value="helmond_festival">Helmond Festival</option>
+    <!-- Meer events kunnen hier worden toegevoegd -->
   </select>
 
   <div>
-    <button class="btn normal" onclick="koopTicket('normal')">🎟 Normaal (gratis)</button>
-    <button class="btn vip" onclick="koopTicket('vip')">🌟 VIP (35 Robux)</button>
+    <button class="btn-normal" onclick="koopTicket('normal')">🎟 Normaal (gratis)</button>
+    <button class="btn-vip" onclick="koopTicket('vip')">🌟 VIP (35 Robux)</button>
   </div>
 
   <div class="counter">
@@ -57,12 +58,12 @@
   </div>
 
   <div class="timer">
-    <p>⏳ Tijd tot Helmond Festival:</p>
-    <p id="countdown">Bezig met laden...</p>
+    <p>⏳ Countdown naar Helmond Festival:</p>
+    <p id="countdown">Even laden…</p>
   </div>
 
   <script>
-    // ✅ Firebase Config van jou
+    // Firebase Config
     const firebaseConfig = {
       apiKey: "AIzaSyAq2hnWZnhoMzVC_NZ3efND3xEkijRy23k",
       authDomain: "dtm-evemts.firebaseapp.com",
@@ -76,29 +77,29 @@
 
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
-
     const normalSpan = document.getElementById("normalCount");
     const vipSpan = document.getElementById("vipCount");
     const eventSelect = document.getElementById("eventSelect");
 
+    // Update ticket counters
     function updateCounts() {
       const eventKey = eventSelect.value;
-      const ref = db.ref("tickets/" + eventKey);
-      ref.on("value", (snapshot) => {
+      db.ref("tickets/" + eventKey).on("value", (snapshot) => {
         const data = snapshot.val() || { normal: 0, vip: 0 };
         normalSpan.textContent = data.normal;
         vipSpan.textContent = data.vip;
       });
     }
 
+    // Ticket kopen
     function koopTicket(type) {
       const eventKey = eventSelect.value;
       const ref = db.ref(`tickets/${eventKey}/${type}`);
       ref.transaction(current => (current || 0) + 1);
-      alert(`Je hebt een ${type === 'vip' ? 'VIP' : 'normaal'} ticket gekocht!`);
+      alert(`🎉 Je hebt een ${type === 'vip' ? 'VIP' : 'normaal'} ticket gekocht!`);
     }
 
-    // Timer naar 2 of 9 augustus
+    // Countdown naar 2 of 9 augustus
     const countdownEl = document.getElementById("countdown");
     function updateTimer() {
       const now = new Date();
@@ -108,24 +109,31 @@
       const diff = target - now;
 
       if (diff <= 0) {
-        countdownEl.textContent = "Het festival is begonnen!";
+        countdownEl.textContent = "🎉 Het festival is begonnen!";
         return;
       }
 
-      const days = Math.floor(diff / 1000 / 60 / 60 / 24);
-      const hours = Math.floor((diff / 1000 / 60 / 60) % 24);
-      const mins = Math.floor((diff / 1000 / 60) % 60);
-      const secs = Math.floor((diff / 1000) % 60);
+      const d = Math.floor(diff / 1000 / 60 / 60 / 24);
+      const h = Math.floor((diff / 1000 / 60 / 60) % 24);
+      const m = Math.floor((diff / 1000 / 60) % 60);
+      const s = Math.floor((diff / 1000) % 60);
 
-      countdownEl.textContent = `${days}d ${hours}u ${mins}m ${secs}s tot ${target.getDate()} augustus`;
+      countdownEl.textContent = `${d}d ${h}u ${m}m ${s}s tot ${target.getDate()} augustus`;
     }
     setInterval(updateTimer, 1000);
 
-    // Start
+    // Sneltoets: Ctrl + L opent manager.html
+    document.addEventListener("keydown", function(e) {
+      if (e.ctrlKey && e.key.toLowerCase() === "l") {
+        e.preventDefault();
+        window.open("manager.html", "_blank");
+      }
+    });
+
+    // Init
     eventSelect.addEventListener("change", updateCounts);
     updateCounts();
     updateTimer();
   </script>
-
 </body>
 </html>
