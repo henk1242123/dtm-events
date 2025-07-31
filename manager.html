@@ -2,45 +2,85 @@
 <html lang="nl">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>DTM Events Manager</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>DTM-Events Manager</title>
   <style>
-    body { background: #111; color: white; font-family: Arial; padding: 2rem; }
-    h1 { color: #66ff66; }
-    .event-box {
-      border: 1px solid #444;
-      padding: 1rem;
-      margin: 1rem 0;
-      border-radius: 5px;
-      background: #1e1e1e;
+    body {
+      background: #111;
+      color: white;
+      font-family: 'Segoe UI', sans-serif;
+      padding: 2rem;
+      max-width: 700px;
+      margin: auto;
     }
-    input[type="number"] {
-      width: 60px;
-      margin-left: 5px;
+    h1 {
+      color: #66ff66;
+      margin-bottom: 1rem;
+      text-align: center;
+    }
+    form, .event-item {
+      background: #222;
+      padding: 1rem;
+      margin-bottom: 1rem;
+      border-radius: 8px;
+    }
+    label {
+      display: block;
+      margin: 0.3rem 0 0.8rem;
+      font-weight: 600;
+    }
+    input[type=text], input[type=date] {
+      width: 100%;
+      padding: 0.5rem;
+      border-radius: 5px;
+      border: none;
+      font-size: 1rem;
+      margin-bottom: 0.5rem;
     }
     button {
-      margin-left: 5px;
-      padding: 5px 10px;
+      padding: 0.5rem 1rem;
+      border-radius: 5px;
+      border: none;
+      font-size: 1rem;
+      cursor: pointer;
+      margin-right: 0.5rem;
+    }
+    button.save { background: #28a745; color: white; }
+    button.reset { background: #ffcc00; color: black; }
+    button.delete { background: #dc3545; color: white; }
+    .event-item input[type=text], .event-item input[type=date] {
+      width: auto;
+      display: inline-block;
+      margin-right: 0.5rem;
     }
   </style>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 </head>
 <body>
-  <h1>🎛️ DTM Events Manager Panel</h1>
-  <p>Pas hier live het aantal verkochte tickets aan voor elk event.</p>
 
-  <div id="eventList"></div>
+  <h1>DTM-Events Manager</h1>
+
+  <form id="addEventForm">
+    <label>Nieuw event toevoegen:</label>
+    <input type="text" id="newEventName" placeholder="Event naam" required />
+    <input type="date" id="newEventDate" required />
+    <button type="submit" class="save">Toevoegen</button>
+  </form>
+
+  <div id="eventsList">Even laden…</div>
 
   <script>
-    // Prompt voor wachtwoord (optioneel)
-    const toegang = prompt("Voer admin-wachtwoord in:");
-    if (toegang !== "dtm123") {
-      alert("Toegang geweigerd");
-      window.close();
+    // Simple password prompt
+    const password = "dtmadmin123"; // verander dit naar iets sterkers!
+    const inputPass = prompt("Voer beheerderswachtwoord in:");
+    if(inputPass !== password) {
+      alert("Onjuist wachtwoord!");
+      document.body.innerHTML = "<h2 style='text-align:center;color:#f00;'>Toegang geweigerd.</h2>";
+      throw new Error("Onjuist wachtwoord");
     }
 
-    // Firebase config (jouw gegevens)
+    // Firebase config
     const firebaseConfig = {
       apiKey: "AIzaSyAq2hnWZnhoMzVC_NZ3efND3xEkijRy23k",
       authDomain: "dtm-evemts.firebaseapp.com",
@@ -54,47 +94,109 @@
 
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
-    const eventList = document.getElementById("eventList");
 
-    const events = ["helmond_festival"]; // Voeg hier je events toe
+    const eventsList = document.getElementById("eventsList");
+    const addEventForm = document.getElementById("addEventForm");
+    const newEventName = document.getElementById("newEventName");
+    const newEventDate = document.getElementById("newEventDate");
 
-    function renderEvents() {
-      events.forEach(event => {
-        const box = document.createElement("div");
-        box.className = "event-box";
-        box.innerHTML = `
-          <h2>${event.replace("_", " ").toUpperCase()}</h2>
-          <label>Normaal: <input type="number" id="${event}_normal" /></label>
-          <label>VIP: <input type="number" id="${event}_vip" /></label>
-          <button onclick="updateTickets('${event}')">Opslaan</button>
-          <button onclick="resetTickets('${event}')">Reset</button>
-        `;
-        eventList.appendChild(box);
+    // Haal events op en toon ze
+    function loadEvents() {
+      db.ref("events").on("value", snapshot => {
+        const events = snapshot.val() || {};
+        eventsList.innerHTML = "";
 
-        // Laad bestaande waarden
-        db.ref("tickets/" + event).once("value").then(snapshot => {
-          const data = snapshot.val() || {};
-          document.getElementById(`${event}_normal`).value = data.normal || 0;
-          document.getElementById(`${event}_vip`).value = data.vip || 0;
+        if(Object.keys(events).length === 0) {
+          eventsList.textContent = "Geen events gevonden.";
+          return;
+        }
+
+        for (const key in events) {
+          const event = events[key];
+          const div = document.createElement("div");
+          div.classList.add("event-item");
+
+          div.innerHTML = `
+            <input type="text" value="${event.name}" data-key="${key}" class="editName" />
+            <input type="date" value="${event.date ? event.date.substring(0,10) : ''}" data-key="${key}" class="editDate" />
+            <button class="save" data-key="${key}">Opslaan</button>
+            <button class="reset" data-key="${key}">Reset tickets</button>
+            <button class="delete" data-key="${key}">Verwijderen</button>
+            <div>Normale tickets: <strong>${event.tickets?.normal || 0}</strong> | VIP tickets: <strong>${event.tickets?.vip || 0}</strong></div>
+          `;
+
+          eventsList.appendChild(div);
+        }
+
+        // Event listeners voor buttons en inputs
+        document.querySelectorAll(".save").forEach(btn => {
+          btn.onclick = () => {
+            const key = btn.getAttribute("data-key");
+            const nameInput = document.querySelector(`.editName[data-key="${key}"]`);
+            const dateInput = document.querySelector(`.editDate[data-key="${key}"]`);
+            const updatedName = nameInput.value.trim();
+            const updatedDate = dateInput.value;
+
+            if(!updatedName) {
+              alert("Naam mag niet leeg zijn!");
+              return;
+            }
+            if(!updatedDate) {
+              alert("Datum is verplicht!");
+              return;
+            }
+
+            db.ref("events/" + key).update({
+              name: updatedName,
+              date: updatedDate
+            });
+          };
+        });
+
+        document.querySelectorAll(".reset").forEach(btn => {
+          btn.onclick = () => {
+            const key = btn.getAttribute("data-key");
+            if(confirm("Weet je zeker dat je de ticket aantallen wilt resetten?")) {
+              db.ref(`events/${key}/tickets`).set({ normal: 0, vip: 0 });
+            }
+          };
+        });
+
+        document.querySelectorAll(".delete").forEach(btn => {
+          btn.onclick = () => {
+            const key = btn.getAttribute("data-key");
+            if(confirm("Weet je zeker dat je dit event wilt verwijderen? Dit kan niet ongedaan worden gemaakt.")) {
+              db.ref("events/" + key).remove();
+            }
+          };
         });
       });
     }
 
-    window.updateTickets = function(event) {
-      const normal = parseInt(document.getElementById(`${event}_normal`).value) || 0;
-      const vip = parseInt(document.getElementById(`${event}_vip`).value) || 0;
-      db.ref(`tickets/${event}`).set({ normal, vip });
-      alert("Tickets bijgewerkt!");
+    // Nieuw event toevoegen
+    addEventForm.onsubmit = e => {
+      e.preventDefault();
+      const name = newEventName.value.trim();
+      const date = newEventDate.value;
+
+      if(!name || !date) {
+        alert("Vul naam en datum in.");
+        return;
+      }
+
+      // Unieke key genereren met push
+      const newEventRef = db.ref("events").push();
+      newEventRef.set({
+        name: name,
+        date: date,
+        tickets: { normal: 0, vip: 0 }
+      });
+
+      newEventName.value = "";
+      newEventDate.value = "";
     };
 
-    window.resetTickets = function(event) {
-      db.ref(`tickets/${event}`).set({ normal: 0, vip: 0 });
-      document.getElementById(`${event}_normal`).value = 0;
-      document.getElementById(`${event}_vip`).value = 0;
-      alert("Tickets gereset.");
-    };
-
-    renderEvents();
+    loadEvents();
   </script>
 </body>
 </html>
