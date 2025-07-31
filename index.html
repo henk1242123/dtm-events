@@ -3,74 +3,52 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>DTM-Events</title>
+  <title>DTM‑Events</title>
   <style>
     body {
-      font-family: Arial, sans-serif;
       background-color: #121212;
       color: white;
+      font-family: 'Segoe UI', sans-serif;
       text-align: center;
-      padding: 30px;
+      padding: 2rem;
     }
-
-    img.logo {
-      width: 200px;
-      margin-bottom: 20px;
-    }
-
-    h1 {
-      color: #66ff66;
-    }
-
-    select, button {
-      padding: 10px;
-      font-size: 16px;
-      margin: 10px;
-    }
-
-    button {
+    h1 { color: #66ff66; margin-bottom: 0.5rem; }
+    .btn {
+      padding: 0.8rem 1.4rem;
+      margin: 0.5rem;
       border: none;
       border-radius: 5px;
+      font-size: 1rem;
       cursor: pointer;
     }
-
-    .normal {
-      background-color: #28a745;
-      color: white;
+    .normal { background: #28a745; color: white; }
+    .vip { background: #ffcc00; color: black; }
+    .counter, .timer {
+      margin-top: 2rem;
+      font-size: 1.2rem;
     }
-
-    .vip {
-      background-color: #ffcc00;
-      color: black;
-    }
-
-    .counter {
-      margin-top: 20px;
-      font-size: 20px;
-    }
-
-    .ticket-section {
-      margin-top: 20px;
+    select, button {
+      font-size: 1rem;
+      margin: 0.5rem;
     }
   </style>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 </head>
 <body>
-  <img src="dtm-logo.png" alt="DTM Events Logo" class="logo" />
-  <h1>Welkom bij DTM-Events</h1>
-  <p>Voor al uw evenementen binnen servers – koop vandaag nog je ticket!</p>
+
+  <img src="dtm-logo.png" alt="DTM Events Logo" width="200">
+  <h1>DTM‑Events Ticket Shop</h1>
+  <p>Kies je event en koop je ticket hieronder:</p>
+
+  <label for="eventSelect">🎪 Selecteer event:</label>
+  <select id="eventSelect">
+    <option value="helmond_festival">Helmond Festival</option>
+  </select>
 
   <div>
-    <label for="eventSelect">Kies je event:</label>
-    <select id="eventSelect" onchange="updateCounts()">
-      <option value="Helmond_Festival2">Helmond Festival 2 aug</option>
-      <option value="Helmond_Festival9">Helmond Festival 9 aug</option>
-      <option value="Geen_Optie">Geen Optie</option>
-    </select>
-  </div>
-
-  <div class="ticket-section">
-    <button class="normal" onclick="koopTicket('normal')">🎟 Normaal Ticket (gratis)</button>
-    <button class="vip" onclick="koopTicket('vip')">🌟 VIP Ticket (35 Robux)</button>
+    <button class="btn normal" onclick="koopTicket('normal')">🎟 Normaal (gratis)</button>
+    <button class="btn vip" onclick="koopTicket('vip')">🌟 VIP (35 Robux)</button>
   </div>
 
   <div class="counter">
@@ -78,39 +56,76 @@
     <p>VIP tickets verkocht: <span id="vipCount">0</span></p>
   </div>
 
+  <div class="timer">
+    <p>⏳ Tijd tot Helmond Festival:</p>
+    <p id="countdown">Bezig met laden...</p>
+  </div>
+
   <script>
-    function getEventKey(type) {
-      const selectedEvent = document.getElementById("eventSelect").value;
-      return `${selectedEvent}_${type}`;
-    }
+    // ✅ Firebase Config van jou
+    const firebaseConfig = {
+      apiKey: "AIzaSyAq2hnWZnhoMzVC_NZ3efND3xEkijRy23k",
+      authDomain: "dtm-evemts.firebaseapp.com",
+      databaseURL: "https://dtm-evemts-default-rtdb.europe-west1.firebasedatabase.app",
+      projectId: "dtm-evemts",
+      storageBucket: "dtm-evemts.firebasestorage.app",
+      messagingSenderId: "673592896357",
+      appId: "1:673592896357:web:4aa0d051ad738c12a80f8c",
+      measurementId: "G-GFRH4KY8GF"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    const normalSpan = document.getElementById("normalCount");
+    const vipSpan = document.getElementById("vipCount");
+    const eventSelect = document.getElementById("eventSelect");
 
     function updateCounts() {
-      const normalKey = getEventKey("normal");
-      const vipKey = getEventKey("vip");
-
-      const normalCount = parseInt(localStorage.getItem(normalKey)) || 0;
-      const vipCount = parseInt(localStorage.getItem(vipKey)) || 0;
-
-      document.getElementById("normalCount").textContent = normalCount;
-      document.getElementById("vipCount").textContent = vipCount;
+      const eventKey = eventSelect.value;
+      const ref = db.ref("tickets/" + eventKey);
+      ref.on("value", (snapshot) => {
+        const data = snapshot.val() || { normal: 0, vip: 0 };
+        normalSpan.textContent = data.normal;
+        vipSpan.textContent = data.vip;
+      });
     }
 
     function koopTicket(type) {
-      const key = getEventKey(type);
-      let count = parseInt(localStorage.getItem(key)) || 0;
-      count++;
-      localStorage.setItem(key, count);
-      updateCounts();
-
-      if (type === "normal") {
-        alert("Je hebt een normaal ticket gekocht!");
-      } else {
-        alert("Je hebt een VIP-ticket gekocht voor 35 Robux!");
-      }
+      const eventKey = eventSelect.value;
+      const ref = db.ref(`tickets/${eventKey}/${type}`);
+      ref.transaction(current => (current || 0) + 1);
+      alert(`Je hebt een ${type === 'vip' ? 'VIP' : 'normaal'} ticket gekocht!`);
     }
 
-    // Initialiseer teller bij het laden
-    window.onload = updateCounts;
+    // Timer naar 2 of 9 augustus
+    const countdownEl = document.getElementById("countdown");
+    function updateTimer() {
+      const now = new Date();
+      const aug2 = new Date(now.getFullYear(), 7, 2);
+      const aug9 = new Date(now.getFullYear(), 7, 9);
+      const target = now < aug2 ? aug2 : aug9;
+      const diff = target - now;
+
+      if (diff <= 0) {
+        countdownEl.textContent = "Het festival is begonnen!";
+        return;
+      }
+
+      const days = Math.floor(diff / 1000 / 60 / 60 / 24);
+      const hours = Math.floor((diff / 1000 / 60 / 60) % 24);
+      const mins = Math.floor((diff / 1000 / 60) % 60);
+      const secs = Math.floor((diff / 1000) % 60);
+
+      countdownEl.textContent = `${days}d ${hours}u ${mins}m ${secs}s tot ${target.getDate()} augustus`;
+    }
+    setInterval(updateTimer, 1000);
+
+    // Start
+    eventSelect.addEventListener("change", updateCounts);
+    updateCounts();
+    updateTimer();
   </script>
+
 </body>
 </html>
