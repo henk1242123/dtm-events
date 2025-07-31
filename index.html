@@ -22,10 +22,13 @@
       color: #66ff66;
     }
 
-    button {
-      padding: 10px 20px;
+    select, button {
+      padding: 10px;
+      font-size: 16px;
       margin: 10px;
-      font-size: 18px;
+    }
+
+    button {
       border: none;
       border-radius: 5px;
       cursor: pointer;
@@ -45,6 +48,10 @@
       margin-top: 20px;
       font-size: 20px;
     }
+
+    .ticket-section {
+      margin-top: 20px;
+    }
   </style>
 </head>
 <body>
@@ -53,6 +60,15 @@
   <p>Voor al uw evenementen binnen servers – koop vandaag nog je ticket!</p>
 
   <div>
+    <label for="eventSelect">Kies je event:</label>
+    <select id="eventSelect" onchange="updateCounts()">
+      <option value="Helmond_Festival2">Helmond Festival 2 aug</option>
+      <option value="Helmond_Festival9">Helmond Festival 9 aug</option>
+      <option value="Geen_Optie">Geen Optie</option>
+    </select>
+  </div>
+
+  <div class="ticket-section">
     <button class="normal" onclick="koopTicket('normal')">🎟 Normaal Ticket (gratis)</button>
     <button class="vip" onclick="koopTicket('vip')">🌟 VIP Ticket (35 Robux)</button>
   </div>
@@ -63,26 +79,38 @@
   </div>
 
   <script>
-    // Haal bestaande aantallen op uit localStorage
-    let normalCount = parseInt(localStorage.getItem("normalCount")) || 0;
-    let vipCount = parseInt(localStorage.getItem("vipCount")) || 0;
+    function getEventKey(type) {
+      const selectedEvent = document.getElementById("eventSelect").value;
+      return `${selectedEvent}_${type}`;
+    }
 
-    document.getElementById("normalCount").textContent = normalCount;
-    document.getElementById("vipCount").textContent = vipCount;
+    function updateCounts() {
+      const normalKey = getEventKey("normal");
+      const vipKey = getEventKey("vip");
+
+      const normalCount = parseInt(localStorage.getItem(normalKey)) || 0;
+      const vipCount = parseInt(localStorage.getItem(vipKey)) || 0;
+
+      document.getElementById("normalCount").textContent = normalCount;
+      document.getElementById("vipCount").textContent = vipCount;
+    }
 
     function koopTicket(type) {
+      const key = getEventKey(type);
+      let count = parseInt(localStorage.getItem(key)) || 0;
+      count++;
+      localStorage.setItem(key, count);
+      updateCounts();
+
       if (type === "normal") {
-        normalCount++;
-        localStorage.setItem("normalCount", normalCount);
-        document.getElementById("normalCount").textContent = normalCount;
         alert("Je hebt een normaal ticket gekocht!");
-      } else if (type === "vip") {
-        vipCount++;
-        localStorage.setItem("vipCount", vipCount);
-        document.getElementById("vipCount").textContent = vipCount;
+      } else {
         alert("Je hebt een VIP-ticket gekocht voor 35 Robux!");
       }
     }
+
+    // Initialiseer teller bij het laden
+    window.onload = updateCounts;
   </script>
 </body>
 </html>
