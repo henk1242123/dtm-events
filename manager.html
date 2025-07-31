@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>DTM Events Manager</title>
+  <style>
+    body { background: #111; color: white; font-family: Arial; padding: 2rem; }
+    h1 { color: #66ff66; }
+    .event-box {
+      border: 1px solid #444;
+      padding: 1rem;
+      margin: 1rem 0;
+      border-radius: 5px;
+      background: #1e1e1e;
+    }
+    input[type="number"] {
+      width: 60px;
+      margin-left: 5px;
+    }
+    button {
+      margin-left: 5px;
+      padding: 5px 10px;
+    }
+  </style>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+</head>
+<body>
+  <h1>🎛️ DTM Events Manager Panel</h1>
+  <p>Pas hier live het aantal verkochte tickets aan voor elk event.</p>
+
+  <div id="eventList"></div>
+
+  <script>
+    // Prompt voor wachtwoord (optioneel)
+    const toegang = prompt("Voer admin-wachtwoord in:");
+    if (toegang !== "dtm123") {
+      alert("Toegang geweigerd");
+      window.close();
+    }
+
+    // Firebase config (jouw gegevens)
+    const firebaseConfig = {
+      apiKey: "AIzaSyAq2hnWZnhoMzVC_NZ3efND3xEkijRy23k",
+      authDomain: "dtm-evemts.firebaseapp.com",
+      databaseURL: "https://dtm-evemts-default-rtdb.europe-west1.firebasedatabase.app",
+      projectId: "dtm-evemts",
+      storageBucket: "dtm-evemts.firebasestorage.app",
+      messagingSenderId: "673592896357",
+      appId: "1:673592896357:web:4aa0d051ad738c12a80f8c",
+      measurementId: "G-GFRH4KY8GF"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+    const eventList = document.getElementById("eventList");
+
+    const events = ["helmond_festival"]; // Voeg hier je events toe
+
+    function renderEvents() {
+      events.forEach(event => {
+        const box = document.createElement("div");
+        box.className = "event-box";
+        box.innerHTML = `
+          <h2>${event.replace("_", " ").toUpperCase()}</h2>
+          <label>Normaal: <input type="number" id="${event}_normal" /></label>
+          <label>VIP: <input type="number" id="${event}_vip" /></label>
+          <button onclick="updateTickets('${event}')">Opslaan</button>
+          <button onclick="resetTickets('${event}')">Reset</button>
+        `;
+        eventList.appendChild(box);
+
+        // Laad bestaande waarden
+        db.ref("tickets/" + event).once("value").then(snapshot => {
+          const data = snapshot.val() || {};
+          document.getElementById(`${event}_normal`).value = data.normal || 0;
+          document.getElementById(`${event}_vip`).value = data.vip || 0;
+        });
+      });
+    }
+
+    window.updateTickets = function(event) {
+      const normal = parseInt(document.getElementById(`${event}_normal`).value) || 0;
+      const vip = parseInt(document.getElementById(`${event}_vip`).value) || 0;
+      db.ref(`tickets/${event}`).set({ normal, vip });
+      alert("Tickets bijgewerkt!");
+    };
+
+    window.resetTickets = function(event) {
+      db.ref(`tickets/${event}`).set({ normal: 0, vip: 0 });
+      document.getElementById(`${event}_normal`).value = 0;
+      document.getElementById(`${event}_vip`).value = 0;
+      alert("Tickets gereset.");
+    };
+
+    renderEvents();
+  </script>
+</body>
+</html>
