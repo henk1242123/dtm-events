@@ -2,30 +2,29 @@
 <html lang="nl">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>DTM‑Events</title>
   <style>
     body {
       background: #111;
-      color: #fff;
+      color: white;
       font-family: 'Segoe UI', sans-serif;
-      text-align: center;
-      margin: 0;
       padding: 2rem;
+      text-align: center;
     }
-    h1 { color: #66ff66; margin-bottom: 0.5rem; }
+    h1 { color: #66ff66; margin-bottom: 1rem; }
     select, button {
       font-size: 1rem;
       margin: 0.5rem;
-      padding: 0.6rem 1rem;
-      border: none;
+      padding: 0.5rem 1rem;
       border-radius: 5px;
+      border: none;
     }
-    .btn-normal { background: #28a745; color: #fff; }
-    .btn-vip { background: #ffcc00; color: #000; }
+    button.normal { background: #28a745; color: white; }
+    button.vip { background: #ffcc00; color: black; }
     .counter, .timer {
-      margin-top: 2rem;
-      font-size: 1.1rem;
+      margin-top: 1.5rem;
+      font-size: 1.2rem;
     }
     img.logo {
       width: 200px;
@@ -37,19 +36,16 @@
 </head>
 <body>
 
-  <img src="dtm-logo.png" alt="DTM Events Logo" class="logo">
+  <img src="dtm-logo.png" alt="DTM Events Logo" class="logo" />
   <h1>DTM‑Events Ticket Shop</h1>
   <p>Kies een event en koop je ticket:</p>
 
   <label for="eventSelect">🎪 Event selecteren:</label>
-  <select id="eventSelect">
-    <option value="helmond_festival">Helmond Festival</option>
-    <!-- Meer events kunnen hier worden toegevoegd -->
-  </select>
+  <select id="eventSelect"></select>
 
   <div>
-    <button class="btn-normal" onclick="koopTicket('normal')">🎟 Normaal (gratis)</button>
-    <button class="btn-vip" onclick="koopTicket('vip')">🌟 VIP (35 Robux)</button>
+    <button class="normal" onclick="koopTicket('normal')">🎟 Normaal (gratis)</button>
+    <button class="vip" onclick="koopTicket('vip')">🌟 VIP (35 Robux)</button>
   </div>
 
   <div class="counter">
@@ -58,12 +54,12 @@
   </div>
 
   <div class="timer">
-    <p>⏳ Countdown naar Helmond Festival:</p>
+    <p>⏳ Countdown naar event:</p>
     <p id="countdown">Even laden…</p>
   </div>
 
   <script>
-    // Firebase Config
+    // Firebase config
     const firebaseConfig = {
       apiKey: "AIzaSyAq2hnWZnhoMzVC_NZ3efND3xEkijRy23k",
       authDomain: "dtm-evemts.firebaseapp.com",
@@ -77,63 +73,105 @@
 
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
-    const normalSpan = document.getElementById("normalCount");
-    const vipSpan = document.getElementById("vipCount");
-    const eventSelect = document.getElementById("eventSelect");
 
-    // Update ticket counters
-    function updateCounts() {
-      const eventKey = eventSelect.value;
-      db.ref("tickets/" + eventKey).on("value", (snapshot) => {
-        const data = snapshot.val() || { normal: 0, vip: 0 };
-        normalSpan.textContent = data.normal;
-        vipSpan.textContent = data.vip;
+    const eventSelect = document.getElementById("eventSelect");
+    const normalCountSpan = document.getElementById("normalCount");
+    const vipCountSpan = document.getElementById("vipCount");
+    const countdownEl = document.getElementById("countdown");
+
+    let currentEventKey = null;
+    let ticketListener = null;
+
+    // Haal events op en vul dropdown
+    function loadEvents() {
+      db.ref("events").on("value", (snapshot) => {
+        const events = snapshot.val() || {};
+        eventSelect.innerHTML = "";
+        for (const key in events) {
+          const opt = document.createElement("option");
+          opt.value = key;
+          opt.textContent = events[key].name;
+          eventSelect.appendChild(opt);
+        }
+        // Selecteer eerste event automatisch
+        if (eventSelect.options.length > 0) {
+          eventSelect.selectedIndex = 0;
+          selectEvent(eventSelect.value);
+        }
       });
+    }
+
+    // Selecteer event & start luisteren naar ticket updates
+    function selectEvent(key) {
+      currentEventKey = key;
+
+      if (ticketListener) ticketListener.off();
+
+      ticketListener = db.ref(`events/${key}/tickets`);
+      ticketListener.on("value", (snap) => {
+        const tickets = snap.val() || { normal: 0, vip: 0 };
+        normalCountSpan.textContent = tickets.normal;
+        vipCountSpan.textContent = tickets.vip;
+      });
+
+      // Start countdown timer
+      db.ref(`events/${key}/date`).once("value").then(snap => {
+        const dateStr = snap.val();
+        if (!dateStr) {
+          countdownEl.textContent = "Geen datum ingesteld";
+          return;
+        }
+        startCountdown(new Date(dateStr));
+      });
+    }
+
+    // Countdown timer functie
+    let countdownInterval;
+    function startCountdown(date) {
+      clearInterval(countdownInterval);
+      function updateTimer() {
+        const now = new Date();
+        const diff = date - now;
+        if (diff <= 0) {
+          countdownEl.textContent = "🎉 Het event is begonnen!";
+          clearInterval(countdownInterval);
+          return;
+        }
+        const d = Math.floor(diff / 1000 / 60 / 60 / 24);
+        const h = Math.floor((diff / 1000 / 60 / 60) % 24);
+        const m = Math.floor((diff / 1000 / 60) % 60);
+        const s = Math.floor((diff / 1000) % 60);
+        countdownEl.textContent = `${d}d ${h}u ${m}m ${s}s tot ${date.toLocaleDateString('nl-NL')}`;
+      }
+      updateTimer();
+      countdownInterval = setInterval(updateTimer, 1000);
     }
 
     // Ticket kopen
     function koopTicket(type) {
-      const eventKey = eventSelect.value;
-      const ref = db.ref(`tickets/${eventKey}/${type}`);
+      if (!currentEventKey) {
+        alert("Selecteer eerst een event.");
+        return;
+      }
+      const ref = db.ref(`events/${currentEventKey}/tickets/${type}`);
       ref.transaction(current => (current || 0) + 1);
       alert(`🎉 Je hebt een ${type === 'vip' ? 'VIP' : 'normaal'} ticket gekocht!`);
     }
 
-    // Countdown naar 2 of 9 augustus
-    const countdownEl = document.getElementById("countdown");
-    function updateTimer() {
-      const now = new Date();
-      const aug2 = new Date(now.getFullYear(), 7, 2);
-      const aug9 = new Date(now.getFullYear(), 7, 9);
-      const target = now < aug2 ? aug2 : aug9;
-      const diff = target - now;
+    // Dropdown event veranderen
+    eventSelect.addEventListener("change", () => {
+      selectEvent(eventSelect.value);
+    });
 
-      if (diff <= 0) {
-        countdownEl.textContent = "🎉 Het festival is begonnen!";
-        return;
-      }
-
-      const d = Math.floor(diff / 1000 / 60 / 60 / 24);
-      const h = Math.floor((diff / 1000 / 60 / 60) % 24);
-      const m = Math.floor((diff / 1000 / 60) % 60);
-      const s = Math.floor((diff / 1000) % 60);
-
-      countdownEl.textContent = `${d}d ${h}u ${m}m ${s}s tot ${target.getDate()} augustus`;
-    }
-    setInterval(updateTimer, 1000);
-
-    // Sneltoets: Ctrl + L opent manager.html
-    document.addEventListener("keydown", function(e) {
-      if (e.ctrlKey && e.key.toLowerCase() === "u") {
+    // Ctrl + L opent manager
+    document.addEventListener("keydown", e => {
+      if (e.ctrlKey && e.key.toLowerCase() === "l") {
         e.preventDefault();
         window.open("manager.html", "_blank");
       }
     });
 
-    // Init
-    eventSelect.addEventListener("change", updateCounts);
-    updateCounts();
-    updateTimer();
+    loadEvents();
   </script>
 </body>
 </html>
