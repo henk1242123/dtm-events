@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>DTM-Events</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #121212;
+      color: white;
+      text-align: center;
+      padding: 30px;
+    }
+
+    img.logo {
+      width: 200px;
+      margin-bottom: 20px;
+    }
+
+    h1 {
+      color: #66ff66;
+    }
+
+    button {
+      padding: 10px 20px;
+      margin: 10px;
+      font-size: 18px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+
+    .normal {
+      background-color: #28a745;
+      color: white;
+    }
+
+    .vip {
+      background-color: #ffcc00;
+      color: black;
+    }
+
+    .counter {
+      margin-top: 20px;
+      font-size: 20px;
+    }
+  </style>
+</head>
+<body>
+  <img src="dtm-logo.png" alt="DTM Events Logo" class="logo" />
+  <h1>Welkom bij DTM-Events</h1>
+  <p>Voor al uw evenementen binnen servers – koop vandaag nog je ticket!</p>
+
+  <div>
+    <button class="normal" onclick="koopTicket('normal')">🎟 Normaal Ticket (gratis)</button>
+    <button class="vip" onclick="koopTicket('vip')">🌟 VIP Ticket (35 Robux)</button>
+  </div>
+
+  <div class="counter">
+    <p>Normale tickets verkocht: <span id="normalCount">0</span></p>
+    <p>VIP tickets verkocht: <span id="vipCount">0</span></p>
+  </div>
+
+  <script>
+    // Haal bestaande aantallen op uit localStorage
+    let normalCount = parseInt(localStorage.getItem("normalCount")) || 0;
+    let vipCount = parseInt(localStorage.getItem("vipCount")) || 0;
+
+    document.getElementById("normalCount").textContent = normalCount;
+    document.getElementById("vipCount").textContent = vipCount;
+
+    function koopTicket(type) {
+      if (type === "normal") {
+        normalCount++;
+        localStorage.setItem("normalCount", normalCount);
+        document.getElementById("normalCount").textContent = normalCount;
+        alert("Je hebt een normaal ticket gekocht!");
+      } else if (type === "vip") {
+        vipCount++;
+        localStorage.setItem("vipCount", vipCount);
+        document.getElementById("vipCount").textContent = vipCount;
+        alert("Je hebt een VIP-ticket gekocht voor 35 Robux!");
+      }
+    }
+  </script>
+</body>
+</html>
