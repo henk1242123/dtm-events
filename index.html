@@ -186,6 +186,10 @@
     db.ref(`events/${key}`).once('value').then(snapshot => {
       const ev = snapshot.val();
 
+console.log('Geselecteerd event:', ev);
+console.log('Status:', ev.status);
+
+
       normalCount.textContent = ev.tickets.normal || 0;
       vipCount.textContent = ev.tickets.vip || 0;
 
