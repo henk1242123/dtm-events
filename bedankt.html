@@ -1,80 +1,20 @@
 <!DOCTYPE html>
 <html lang="nl">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Bedankt voor je aankoop</title>
-<style>
-  body { background:#121212; color:#e0e0e0; font-family:sans-serif; max-width:600px; margin:3rem auto; padding:1rem; text-align:center;}
-  h1 { color:#4ade80; }
-  a { color:#4ade80; text-decoration:underline; display:inline-block; margin-top:1.5rem;}
-  ul { text-align:left; margin-top:1rem; }
-</style>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Bedankt voor je aankoop!</title>
+  <style>
+    body { background: #121212; color: #4ade80; font-family: sans-serif; max-width: 600px; margin: 5rem auto; padding: 1rem; text-align: center; }
+    h1 { font-size: 2rem; margin-bottom: 1rem; }
+    p { font-size: 1.2rem; }
+    a { color: #22c55e; text-decoration: none; font-weight: 700; }
+    a:hover { text-decoration: underline; }
+  </style>
 </head>
 <body>
-
-<h1>Bedankt voor je aankoop!</h1>
-<div id="ticketInfo">Laden…</div>
-<a href="index.html">← Terug naar hoofdpagina</a>
-
-<script>
-  // Firebase config
-  const firebaseConfig = {
-    apiKey: "AIzaSyBqXEvqXlqfFpfMkM0Z_7PCAdQxbCqS5tQ",
-    authDomain: "dtm-events.firebaseapp.com",
-    databaseURL: "https://dtm-events-default-rtdb.europe-west1.firebasedatabase.app",
-    projectId: "dtm-events",
-    storageBucket: "dtm-events.appspot.com",
-    messagingSenderId: "742462370527",
-    appId: "1:742462370527:web:19c713ca6a0f90acb2c9ac"
-  };
-  firebase.initializeApp(firebaseConfig);
-  const db = firebase.database();
-
-  function getUrlParams() {
-    const params = {};
-    location.search.slice(1).split('&').forEach(p => {
-      const [k,v] = p.split('=');
-      params[k] = decodeURIComponent(v);
-    });
-    return params;
-  }
-
-  const params = getUrlParams();
-
-  async function loadTicketInfo() {
-    if(!params.event || !params.type || !params.num) {
-      document.getElementById('ticketInfo').textContent = 'Ongeldige gegevens.';
-      return;
-    }
-    const ticketSnap = await db.ref(`tickets/${params.event}/${params.type}/${params.num}`).get();
-    if(!ticketSnap.exists()) {
-      document.getElementById('ticketInfo').textContent = 'Ticket niet gevonden.';
-      return;
-    }
-    const ticket = ticketSnap.val();
-    const eventSnap = await db.ref(`events/${params.event}`).get();
-    if(!eventSnap.exists()) {
-      document.getElementById('ticketInfo').textContent = 'Event niet gevonden.';
-      return;
-    }
-    const ev = eventSnap.val();
-
-    const dateString = new Date(ev.date).toLocaleDateString('nl-NL', { year: 'numeric', month: 'long', day: 'numeric' });
-    
-    let html = `<p>Je ticketnummer: <strong>${ticket.number}</strong><br/>
-    Voor event: <strong>${ev.name}</strong> op <strong>${dateString}</strong><br/>
-    Type ticket: <strong>${ticket.ticketType.toUpperCase()}</strong></p>`;
-
-    html += `<p>Bedankt voor je aankoop! We zien je graag op ${dateString}.</p>`;
-
-    document.getElementById('ticketInfo').innerHTML = html;
-  }
-
-  loadTicketInfo();
-</script>
-
+  <h1>🎉 Bedankt voor je aankoop!</h1>
+  <p>We hebben je ticket geregistreerd. We zien je graag bij het event!</p>
+  <p><a href="index.html">Terug naar ticketpagina</a></p>
 </body>
 </html>
