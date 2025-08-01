@@ -18,18 +18,34 @@
     label { font-weight: 600; margin-top: 0.8rem; display: block; }
 
     /* Status kleuren */
-    .status {
+    #statusContainer {
       font-weight: 700;
-      margin-left: 0.5rem;
-      padding: 0.1rem 0.5rem;
+      padding: 0.2rem 0.6rem;
       border-radius: 6px;
-      font-size: 0.85rem;
-      vertical-align: middle;
-      display: inline-block;
+      font-size: 0.9rem;
+      white-space: nowrap;
+      min-width: 160px;
+      text-align: center;
+      margin-left: 0.5rem;
     }
-    .mogelijk_afgelast { background: #facc15; color: #1f1f1f; } /* geel */
-    .afgelast { background: #dc2626; color: #fff; } /* rood */
-    .voorbij { background: #6b7280; color: #e0e0e0; } /* grijs */
+
+    .mogelijk_afgelast {
+      background: #dc2626; /* dik rood */
+      color: #fff;
+      font-weight: 900;
+    }
+
+    .afgelast {
+      background: #dc2626; /* dik rood */
+      color: #fff;
+      font-weight: 900;
+    }
+
+    .voorbij {
+      background: #6b7280; /* grijs */
+      color: #e0e0e0;
+      font-weight: 700;
+    }
   </style>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
@@ -40,9 +56,10 @@
 
 <div class="section">
   <label>Kies een event</label>
-  <select id="eventsSelect"></select>
-  <!-- Status komt hier -->
-  <div id="statusContainer" style="margin-top: 0.3rem;"></div>
+  <div style="display: flex; align-items: center; gap: 0.8rem;">
+    <select id="eventsSelect"></select>
+    <span id="statusContainer"></span>
+  </div>
   <div>
     <strong>Tickets verkocht:</strong><br>
     Normaal: <span id="normalCount">0</span> | VIP: <span id="vipCount">0</span>
@@ -100,7 +117,6 @@
       for (const k in evs) {
         const e = evs[k];
         const dateTime = new Date(e.date).toLocaleString('nl-NL');
-        // Alleen naam en datum in option (status niet in option want HTML werkt niet daar)
         eventsSelect.innerHTML += `<option value="${k}">${e.name} (${dateTime})</option>`;
       }
       eventsSelect.onchange = () => selectEvent(eventsSelect.value);
@@ -108,44 +124,46 @@
     });
   }
 
-  function updateStatusDisplay(status) {
-    let html = '';
-    if(status === 'mogelijk_afgelast') {
-      html = `<span class="status mogelijk_afgelast">Mogelijk afgelast</span>`;
-    } else if(status === 'afgelast') {
-      html = `<span class="status afgelast">Afgecancelld</span>`;
-    } else if(status === 'voorbij') {
-      html = `<span class="status voorbij">Voorbij</span>`;
-    }
-    statusContainer.innerHTML = html;
-  }
-
   function selectEvent(key) {
     currentEvent = key;
     vipValid = false;
     vipMessage.textContent = '';
     buyVipBtn.disabled = true;
-    normalCount.textContent = '';
-    vipCount.textContent = '';
+    mainMessage.textContent = '';
+
     db.ref(`events/${key}`).once('value').then(snap => {
       const ev = snap.val();
 
-      updateStatusDisplay(ev.status || '');
-
-      // Status gebruiken om knoppen te disablen als event afgelast of voorbij is
       const status = ev.status || '';
-      if (status === 'afgelast' || status === 'voorbij') {
-        buyNormalBtn.disabled = true;
-        buyVipBtn.disabled = true;
-        mainMessage.textContent = `Dit event is ${status === 'afgelast' ? 'afgecancelld' : 'voorbij'}.`;
-      } else {
+
+      // Status tonen + klasse
+      if (status === 'mogelijk_afgelast') {
+        statusContainer.textContent = 'Wordt mogelijk afgelast';
+        statusContainer.className = 'mogelijk_afgelast';
         buyNormalBtn.disabled = false;
         buyVipBtn.disabled = !vipValid;
-        mainMessage.textContent = '';
+      } else if (status === 'afgelast') {
+        statusContainer.textContent = 'Afgecancelld';
+        statusContainer.className = 'afgelast';
+        buyNormalBtn.disabled = true;
+        buyVipBtn.disabled = true;
+        mainMessage.textContent = 'Dit event is afgecancelld.';
+      } else if (status === 'voorbij') {
+        statusContainer.textContent = 'Voorbij';
+        statusContainer.className = 'voorbij';
+        buyNormalBtn.disabled = true;
+        buyVipBtn.disabled = true;
+        mainMessage.textContent = 'Dit event is voorbij.';
+      } else {
+        statusContainer.textContent = '';
+        statusContainer.className = '';
+        buyNormalBtn.disabled = false;
+        buyVipBtn.disabled = !vipValid;
       }
 
       normalCount.textContent = ev.tickets.normal || 0;
       vipCount.textContent = ev.tickets.vip || 0;
+
       startCountdown(ev.date);
     });
   }
@@ -206,7 +224,15 @@
       }
       vipMessage.textContent = 'VIP code geldig!';
       vipValid = true;
-      buyVipBtn.disabled = false;
+      // Alleen enable knop als event niet afgelast of voorbij is
+      if (currentEvent) {
+        db.ref(`events/${currentEvent}`).once('value').then(snap2 => {
+          const ev = snap2.val();
+          if (!ev.status || (ev.status !== 'afgelast' && ev.status !== 'voorbij')) {
+            buyVipBtn.disabled = false;
+          }
+        });
+      }
     });
   };
 
