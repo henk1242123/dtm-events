@@ -1,4 +1,3 @@
-<!-- index.html -->
 <!DOCTYPE html>
 <html lang="nl">
 <head>
@@ -50,6 +49,7 @@
 <div id="countdown"></div>
 
 <script>
+  // Vervang ... met jouw Firebase info
   const firebaseConfig = {
     apiKey: "...",
     authDomain: "dtm-evemts.firebaseapp.com",
@@ -62,6 +62,7 @@
   };
   firebase.initializeApp(firebaseConfig);
   const db = firebase.database();
+
   const eventsSelect = document.getElementById('eventsSelect');
   const buyNormalBtn = document.getElementById('buyNormalBtn');
   const buyVipBtn = document.getElementById('buyVipBtn');
@@ -71,6 +72,7 @@
   const normalCount = document.getElementById('normalCount');
   const vipCount = document.getElementById('vipCount');
   const countdownEl = document.getElementById('countdown');
+
   let currentEvent = null, vipValid = false;
 
   function loadEvents() {
@@ -88,7 +90,11 @@
   }
 
   function selectEvent(key) {
-    currentEvent = key; vipValid = false; vipMessage.textContent = ''; buyVipBtn.disabled = true; normalCount.textContent = vipCount.textContent = '';
+    currentEvent = key;
+    vipValid = false;
+    vipMessage.textContent = '';
+    buyVipBtn.disabled = true;
+    normalCount.textContent = vipCount.textContent = '';
     db.ref(`events/${key}`).once('value').then(snap => {
       const ev = snap.val();
       normalCount.textContent = ev.tickets.normal || 0;
@@ -103,8 +109,15 @@
     const target = new Date(dateStr);
     timer = setInterval(() => {
       const diff = target - new Date();
-      if (diff <= 0) { countdownEl.textContent = 'Event is begonnen of voorbij.'; clearInterval(timer); return; }
-      const d = Math.floor(diff / 86400000), h = Math.floor((diff / 3600000) % 24), m = Math.floor((diff / 60000) % 60), s = Math.floor((diff / 1000) % 60);
+      if (diff <= 0) {
+        countdownEl.textContent = 'Event is begonnen of voorbij.';
+        clearInterval(timer);
+        return;
+      }
+      const d = Math.floor(diff / 86400000),
+            h = Math.floor((diff / 3600000) % 24),
+            m = Math.floor((diff / 60000) % 60),
+            s = Math.floor((diff / 1000) % 60);
       countdownEl.textContent = `Nog ${d}d ${h}u ${m}m ${s}s`;
     }, 1000);
   }
@@ -112,7 +125,10 @@
   buyNormalBtn.onclick = () => {
     if (!currentEvent) return;
     db.ref(`events/${currentEvent}/tickets/normal`).transaction(c => (c || 0) + 1)
-      .then(() => mainMessage.textContent = '🎉 Normaal ticket gekocht!');
+      .then(result => {
+        const newCount = result.snapshot.val();
+        window.location.href = `bedankt.html?event=${currentEvent}&type=normal&num=${newCount}`;
+      });
   };
 
   vipCodeInput.oninput = () => {
@@ -127,7 +143,8 @@
       if (!d) { vipMessage.textContent = 'VIP code ongeldig.'; return; }
       if ((d.used || 0) >= (d.limit || 0)) { vipMessage.textContent = 'VIP code limiet bereikt.'; return; }
       vipMessage.textContent = 'VIP code geldig!';
-      vipValid = true; buyVipBtn.disabled = false;
+      vipValid = true;
+      buyVipBtn.disabled = false;
     });
   };
 
@@ -138,18 +155,25 @@
     const vipRef = db.ref(`events/${currentEvent}/tickets/vip`);
     codeRef.transaction(d => {
       if (!d || (d.used || 0) >= (d.limit || 0)) return;
-      d.used = (d.used || 0) + 1; return d;
-    }, (e, comm) => {
-      if (!comm) { mainMessage.textContent = 'VIP code ongeldig of gebruikt.'; return; }
+      d.used = (d.used || 0) + 1;
+      return d;
+    }, (error, committed) => {
+      if (!committed) {
+        mainMessage.textContent = 'VIP code ongeldig of gebruikt.';
+        return;
+      }
       vipRef.transaction(c => (c || 0) + 1)
-        .then(() => mainMessage.textContent = '🎉 VIP ticket gekocht!')
-        .then(() => selectEvent(currentEvent));
+        .then(result => {
+          const newCount = result.snapshot.val();
+          window.location.href = `bedankt.html?event=${currentEvent}&type=vip&num=${newCount}`;
+        });
     });
   };
 
   window.addEventListener('keydown', e => {
     if (e.ctrlKey && (e.key === 'l' || e.key === 'L')) {
-      e.preventDefault(); window.location = 'manager.html';
+      e.preventDefault();
+      window.location = 'manager.html';
     }
   });
 
