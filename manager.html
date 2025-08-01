@@ -1,131 +1,103 @@
 <!DOCTYPE html>
 <html lang="nl">
 <head>
-<meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>Manager - DTM Events</title>
-<style>
-  body { background:#121212; color:#e0e0e0; font-family:sans-serif; max-width:600px; margin:3rem auto; padding:1rem;}
-  h1 { text-align:center; color:#4ade80; margin-bottom:1.5rem;}
-  form, .item, .vip-item { background:#1f1f1f; padding:1rem; border-radius:8px; margin-bottom:1rem;}
-  input, button, select { width:100%; padding:0.6rem; margin-top:0.4rem; border:none; border-radius:6px; font-size:1rem; box-sizing:border-box;}
-  button { background:#4ade80; color:#121212; font-weight:700; border:none; margin-top:0.6rem; cursor:pointer; transition:background .2s;}
-  button:hover { background:#22c55e;}
-  .delete { background:#dc2626; color:#fff; }
-  .delete:hover { background:#b91c1c;}
-  label { font-weight:600; margin-top:0.6rem; display:block;}
-  #msg { font-weight:700; text-align:center; min-height:1.5em;}
-</style>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>DTM Events - Beheer</title>
+  <style>
+    body { background: #111; color: #eee; font-family: sans-serif; max-width: 700px; margin: 3rem auto; padding: 1rem; }
+    h1 { text-align: center; color: #4ade80; }
+    label { display: block; margin-top: 1rem; font-weight: 600; }
+    input { width: 100%; padding: 0.6rem; margin-top: 0.3rem; border-radius: 8px; border: none; font-size: 1rem; box-sizing: border-box; background: #222; color: #fff; }
+    button { margin-top: 1rem; padding: 0.7rem 1rem; border: none; border-radius: 8px; background: #4ade80; font-weight: bold; cursor: pointer; }
+    button:hover { background: #22c55e; }
+    .event { background: #1f1f1f; padding: 1rem; margin-top: 1rem; border-radius: 10px; }
+    .flex { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+    .flex > * { flex: 1; }
+  </style>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 </head>
 <body>
 
-<h1>DTM Events Manager</h1>
-<div id="msg"></div>
+<h1>DTM Events - Beheer</h1>
 
 <form id="addEventForm">
-  <h2>Event toevoegen</h2>
-  <label>Naam:</label><input type="text" id="eventName" required/>
-  <label>Datum:</label><input type="date" id="eventDate"/>
-  <button type="submit">Toevoegen</button>
+  <label>Eventnaam:</label>
+  <input type="text" id="eventName" required />
+  <label>Datum:</label>
+  <input type="date" id="eventDate" required />
+  <label>Tijd:</label>
+  <input type="time" id="eventTime" required />
+  <button type="submit">Event toevoegen</button>
 </form>
 
-<h2>Bestaande Events (edit & delete)</h2>
-<div id="eventsList">Laden…</div>
+<hr style="margin:2rem 0; border-color: #333;" />
 
-<h2>VIP Codes beheren</h2>
-<form id="addVipForm">
-  <label>Code:</label><input type="text" id="vipCode"/>
-  <label>Limiet:</label><input type="number" id="vipLimit" min="1" value="5"/>
-  <button type="submit">Voeg toe</button>
-</form>
-<div id="vipList">Laden…</div>
+<div id="eventsList"></div>
 
 <script>
-  const pass="dtmadmin3";
-  const input=prompt("Wachtwoord?");
-  if(input!==pass) { document.body.innerHTML="<h1>Toegang geweigerd</h1>"; throw new Error("No access"); }
-
-  const firebaseConfig = { apiKey:"...", authDomain:"dtm-evemts.firebaseapp.com", databaseURL:"https://dtm-evemts-default-rtdb.europe-west1.firebasedatabase.app", projectId:"dtm-evemts", storageBucket:"dtm-evemts.firebasestorage.app", messagingSenderId:"...", appId:"...", measurementId:"..." };
+  const firebaseConfig = {
+    apiKey: "...",
+    authDomain: "dtm-evemts.firebaseapp.com",
+    databaseURL: "https://dtm-evemts-default-rtdb.europe-west1.firebasedatabase.app",
+    projectId: "dtm-evemts",
+    storageBucket: "dtm-evemts.appspot.com",
+    messagingSenderId: "...",
+    appId: "...",
+    measurementId: "..."
+  };
   firebase.initializeApp(firebaseConfig);
-  const db=firebase.database();
-  const msgEl=document.getElementById('msg');
-  const addEv=document.getElementById('addEventForm');
-  const eventsList=document.getElementById('eventsList');
-  const addVip=document.getElementById('addVipForm');
-  const vipList=document.getElementById('vipList');
+  const db = firebase.database();
+  const form = document.getElementById('addEventForm');
+  const eventsList = document.getElementById('eventsList');
 
-  addEv.onsubmit=e=>{ e.preventDefault();
-    const n=document.getElementById('eventName').value.trim(), d=document.getElementById('eventDate').value;
-    if(!n||!d) return;
-    db.ref('events').push({name:n, date:d, tickets:{normal:0,vip:0}}).then(()=>msgEl.textContent='Event toegevoegd').catch(()=>msgEl.textContent='Fout bij toevoegen');
-    addEv.reset();
+  form.onsubmit = e => {
+    e.preventDefault();
+    const name = document.getElementById('eventName').value;
+    const date = document.getElementById('eventDate').value;
+    const time = document.getElementById('eventTime').value;
+    const fullDate = `${date}T${time}`;
+    db.ref('events').push({ name: name, date: fullDate, tickets: { normal: 0, vip: 0 } });
+    form.reset();
   };
 
   function loadEvents() {
-    db.ref('events').on('value',snap=>{
-      const evs=snap.val()||{};
-      eventsList.innerHTML='';
-      for(const key in evs){
-        const ev=evs[key];
-        const div=document.createElement('div'); div.className='item';
-        div.innerHTML=`<strong>${ev.name}</strong> (${ev.date})
-          <label>Naam (wijzig):</label><input data-key="${key}" class="nameInput" type="text" value="${ev.name}"/>
-          <label>Datum (wijzig):</label><input data-key="${key}" class="dateInput" type="date" value="${ev.date}"/>
-          <button class="saveBtn" data-key="${key}">Opslaan</button>
-          <button class="delete deleteBtn" data-key="${key}">Verwijderen</button>`;
-        eventsList.appendChild(div);
+    db.ref('events').on('value', snap => {
+      eventsList.innerHTML = '';
+      const data = snap.val() || {};
+      for (const key in data) {
+        const ev = data[key];
+        const [d, t] = ev.date.split('T');
+        eventsList.innerHTML += `
+          <div class="event">
+            <label>Naam:</label>
+            <input type="text" class="nameInput" data-key="${key}" value="${ev.name}" />
+            <label>Datum:</label>
+            <input type="date" class="dateInput" data-key="${key}" value="${d}" />
+            <label>Tijd:</label>
+            <input type="time" class="timeInput" data-key="${key}" value="${t ? t.slice(0,5) : '00:00'}" />
+            <div class="flex">
+              <button class="saveBtn" data-key="${key}">Opslaan</button>
+              <button class="deleteBtn" data-key="${key}" style="background:#ef4444;">Verwijder</button>
+            </div>
+          </div>`;
       }
-      document.querySelectorAll('.saveBtn').forEach(b=>{
-        b.onclick=()=> {
-          const k=b.dataset.key;
-          const nm=document.querySelector(`.nameInput[data-key="${k}"]`).value.trim();
-          const dt=document.querySelector(`.dateInput[data-key="${k}"]`).value;
-          if(!nm||!dt) return;
-          db.ref(`events/${k}`).update({name:nm, date:dt});
-          msgEl.textContent='Event bijgewerkt';
-        };
-      });
-      document.querySelectorAll('.deleteBtn').forEach(b=> {
-        b.onclick=()=> {
-          if(confirm('Verwijderen?')) db.ref(`events/${b.dataset.key}`).remove().then(()=>msgEl.textContent='Event verwijderd');
-        };
-      });
-    });
-  }
 
-  addVip.onsubmit=e=>{
-    e.preventDefault();
-    const c=document.getElementById('vipCode').value.trim();
-    const l=parseInt(document.getElementById('vipLimit').value);
-    if(!c||!l) return;
-    db.ref(`vipPasswords/${c}`).set({limit:l,used:0})
-    .then(()=>msgEl.textContent=`VIP code "${c}" toegevoegd`).catch(()=>msgEl.textContent='Fout bij toevoegen');
-    addVip.reset();
-  };
-
-  function loadVip(){
-    db.ref('vipPasswords').on('value',snap=>{
-      const v=snap.val()||{};
-      vipList.innerHTML='';
-      for(const code in v){
-        const d=v[code];
-        const div=document.createElement('div'); div.className='vip-item';
-        div.innerHTML=`<strong>${code}</strong> | Limiet: <input type="number" min="1" data-code="${code}" class="vipLimitInput" value="${d.limit}"/> | Gebruikt: ${d.used} 
-          <button class="delete deleteVipBtn" data-code="${code}">Verwijderen</button>`;
-        vipList.appendChild(div);
-      }
-      document.querySelectorAll('.vipLimitInput').forEach(inp=>{
-        inp.onchange=()=>{
-          const code=inp.dataset.code, val=parseInt(inp.value)||1;
-          db.ref(`vipPasswords/${code}/limit`).set(val).then(()=>msgEl.textContent=`Limiet ${code} aangepast`);
+      document.querySelectorAll('.saveBtn').forEach(btn => {
+        btn.onclick = () => {
+          const k = btn.dataset.key;
+          const nm = document.querySelector(`.nameInput[data-key="${k}"]`).value;
+          const dt = document.querySelector(`.dateInput[data-key="${k}"]`).value;
+          const tm = document.querySelector(`.timeInput[data-key="${k}"]`).value;
+          db.ref(`events/${k}`).update({ name: nm, date: `${dt}T${tm}` });
         };
       });
-      document.querySelectorAll('.deleteVipBtn').forEach(b=>{
-        b.onclick=()=>{
-          if(confirm('VIP code verwijderen?')) {
-            db.ref(`vipPasswords/${b.dataset.code}`).remove()
-            .then(()=>msgEl.textContent=`VIP code "${b.dataset.code}" verwijderd`);
+
+      document.querySelectorAll('.deleteBtn').forEach(btn => {
+        btn.onclick = () => {
+          if (confirm("Weet je zeker dat je dit event wilt verwijderen?")) {
+            db.ref(`events/${btn.dataset.key}`).remove();
           }
         };
       });
@@ -133,7 +105,7 @@
   }
 
   loadEvents();
-  loadVip();
 </script>
+
 </body>
 </html>
