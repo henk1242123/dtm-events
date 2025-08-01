@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html lang="nl">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>DTM Events - Tickets kopen</title>
-<link rel="icon" type="image/png" href="dtm-logo.png" />
+  <link rel="icon" type="image/png" href="dtm-favicon.png">
   <style>
     body { background: #121212; color: #e0e0e0; font-family: sans-serif; max-width: 600px; margin: 3rem auto; padding: 1rem; }
     h1 { text-align: center; color: #4ade80; margin-bottom: 1rem; }
@@ -16,6 +16,17 @@
     #countdown { font-size: 1.1rem; text-align: center; margin-top: 0.5rem; color: #86efac; }
     #mainMessage { margin-top: 1rem; font-weight: 700; min-height: 1.5em; }
     label { font-weight: 600; margin-top: 0.8rem; display: block; }
+    .eventStatus {
+      color: #f87171;
+      font-weight: 900;
+      font-size: 1.2rem;
+      background: #1c1c1c;
+      padding: 1rem;
+      border: 2px solid #dc2626;
+      border-radius: 8px;
+      margin-bottom: 1rem;
+      text-align: center;
+    }
   </style>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
@@ -25,6 +36,7 @@
 <h1>DTM Events - Tickets kopen</h1>
 
 <div class="section">
+  <div id="eventStatus"></div>
   <label>Kies een event</label>
   <select id="eventsSelect"></select>
   <div>
@@ -50,16 +62,14 @@
 <div id="countdown"></div>
 
 <script>
-  // Jouw Firebase config, invulbaar
   const firebaseConfig = {
-    apiKey: "AIzaSyAq2hnWZnhoMzVC_NZ3efND3xEkijRy23k",
-    authDomain: "dtm-evemts.firebaseapp.com",
-    databaseURL: "https://dtm-evemts-default-rtdb.europe-west1.firebasedatabase.app",
-    projectId: "dtm-evemts",
-    storageBucket: "dtm-evemts.firebasestorage.app",
-    messagingSenderId: "673592896357",
-    appId: "1:673592896357:web:4aa0d051ad738c12a80f8c",
-    measurementId: "G-GFRH4KY8GF"
+    apiKey: "AIzaSyBz-Nt3XmpN-t3x-AkkE4cX6pQn2OD2AIU",
+    authDomain: "dtm-events.firebaseapp.com",
+    databaseURL: "https://dtm-events-default-rtdb.europe-west1.firebasedatabase.app",
+    projectId: "dtm-events",
+    storageBucket: "dtm-events.appspot.com",
+    messagingSenderId: "944781390391",
+    appId: "1:944781390391:web:e22fe2df9c13aa3fa16496"
   };
   firebase.initializeApp(firebaseConfig);
   const db = firebase.database();
@@ -73,6 +83,7 @@
   const normalCount = document.getElementById('normalCount');
   const vipCount = document.getElementById('vipCount');
   const countdownEl = document.getElementById('countdown');
+  const eventStatus = document.getElementById('eventStatus');
 
   let currentEvent = null, vipValid = false;
 
@@ -95,12 +106,28 @@
     vipValid = false;
     vipMessage.textContent = '';
     buyVipBtn.disabled = true;
-    normalCount.textContent = '';
-    vipCount.textContent = '';
+    normalCount.textContent = vipCount.textContent = '';
+    eventStatus.innerHTML = '';
+
     db.ref(`events/${key}`).once('value').then(snap => {
       const ev = snap.val();
-      normalCount.textContent = ev.tickets.normal || 0;
-      vipCount.textContent = ev.tickets.vip || 0;
+      if (!ev) return;
+      if (ev.status === 'mogelijk_afgelast') {
+        eventStatus.innerHTML = '<div class="eventStatus">‼️ Dit event wordt mogelijk afgelast</div>';
+      } else if (ev.status === 'afgelast') {
+        eventStatus.innerHTML = '<div class="eventStatus">🚫 Dit event is afgelast. Er kunnen geen tickets worden gekocht.</div>';
+        buyNormalBtn.disabled = true;
+        buyVipBtn.disabled = true;
+      } else if (ev.status === 'voorbij') {
+        eventStatus.innerHTML = '<div class="eventStatus">⏱️ Dit event is inmiddels voorbij.</div>';
+        buyNormalBtn.disabled = true;
+        buyVipBtn.disabled = true;
+      } else {
+        buyNormalBtn.disabled = false;
+      }
+
+      normalCount.textContent = ev.tickets?.normal || 0;
+      vipCount.textContent = ev.tickets?.vip || 0;
       startCountdown(ev.date);
     });
   }
@@ -111,35 +138,16 @@
     const target = new Date(dateStr);
     timer = setInterval(() => {
       const diff = target - new Date();
-      if (diff <= 0) {
-        countdownEl.textContent = 'Event is begonnen of voorbij.';
-        clearInterval(timer);
-        return;
-      }
-      const d = Math.floor(diff / 86400000),
-            h = Math.floor((diff / 3600000) % 24),
-            m = Math.floor((diff / 60000) % 60),
-            s = Math.floor((diff / 1000) % 60);
+      if (diff <= 0) { countdownEl.textContent = 'Event is begonnen of voorbij.'; clearInterval(timer); return; }
+      const d = Math.floor(diff / 86400000), h = Math.floor((diff / 3600000) % 24), m = Math.floor((diff / 60000) % 60), s = Math.floor((diff / 1000) % 60);
       countdownEl.textContent = `Nog ${d}d ${h}u ${m}m ${s}s`;
     }, 1000);
-  }
-
-  function redirectAfterPurchase() {
-    setTimeout(() => {
-      window.location.href = 'bedankt.html';
-    }, 2000);
   }
 
   buyNormalBtn.onclick = () => {
     if (!currentEvent) return;
     db.ref(`events/${currentEvent}/tickets/normal`).transaction(c => (c || 0) + 1)
-      .then(() => {
-        mainMessage.textContent = '🎉 Normaal ticket gekocht!';
-        redirectAfterPurchase();
-      })
-      .catch(() => {
-        mainMessage.textContent = 'Er is iets misgegaan bij het kopen.';
-      });
+      .then(() => mainMessage.textContent = '🎉 Normaal ticket gekocht!');
   };
 
   vipCodeInput.oninput = () => {
@@ -151,17 +159,10 @@
     if (!code) return;
     db.ref(`vipPasswords/${code}`).once('value').then(snap => {
       const d = snap.val();
-      if (!d) {
-        vipMessage.textContent = 'VIP code ongeldig.';
-        return;
-      }
-      if ((d.used || 0) >= (d.limit || 0)) {
-        vipMessage.textContent = 'VIP code limiet bereikt.';
-        return;
-      }
+      if (!d) { vipMessage.textContent = 'VIP code ongeldig.'; return; }
+      if ((d.used || 0) >= (d.limit || 0)) { vipMessage.textContent = 'VIP code limiet bereikt.'; return; }
       vipMessage.textContent = 'VIP code geldig!';
-      vipValid = true;
-      buyVipBtn.disabled = false;
+      vipValid = true; buyVipBtn.disabled = false;
     });
   };
 
@@ -172,26 +173,18 @@
     const vipRef = db.ref(`events/${currentEvent}/tickets/vip`);
     codeRef.transaction(d => {
       if (!d || (d.used || 0) >= (d.limit || 0)) return;
-      d.used = (d.used || 0) + 1;
-      return d;
-    }, (error, committed) => {
-      if (!committed) {
-        mainMessage.textContent = 'VIP code ongeldig of gebruikt.';
-        return;
-      }
+      d.used = (d.used || 0) + 1; return d;
+    }, (e, comm) => {
+      if (!comm) { mainMessage.textContent = 'VIP code ongeldig of gebruikt.'; return; }
       vipRef.transaction(c => (c || 0) + 1)
-        .then(() => {
-          mainMessage.textContent = '🎉 VIP ticket gekocht!';
-          redirectAfterPurchase();
-        })
+        .then(() => mainMessage.textContent = '🎉 VIP ticket gekocht!')
         .then(() => selectEvent(currentEvent));
     });
   };
 
   window.addEventListener('keydown', e => {
     if (e.ctrlKey && (e.key === 'l' || e.key === 'L')) {
-      e.preventDefault();
-      window.location = 'manager.html';
+      e.preventDefault(); window.location = 'manager.html';
     }
   });
 
