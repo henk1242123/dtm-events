@@ -1,4 +1,3 @@
-<!-- manager.html -->
 <!DOCTYPE html>
 <html lang="nl">
 <head>
@@ -107,6 +106,7 @@
           <th>Datum & tijd</th>
           <th>Normaal tickets</th>
           <th>VIP tickets</th>
+          <th>Status</th> <!-- Hier toegevoegd -->
           <th>Acties</th>
         </tr>
       </thead>
@@ -217,13 +217,18 @@
         const e = events[key];
         const tr = document.createElement('tr');
 
-        const dateTime = new Date(e.date).toLocaleString('nl-NL', {day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
-
         tr.innerHTML = `
           <td><input type="text" data-key="${key}" class="editEventName" value="${e.name}" /></td>
           <td><input type="datetime-local" data-key="${key}" class="editEventDate" value="${toInputDateTimeLocal(e.date)}" /></td>
           <td><input type="number" min="0" data-key="${key}" class="editNormalTickets" value="${e.tickets?.normal || 0}" /></td>
           <td><input type="number" min="0" data-key="${key}" class="editVipTickets" value="${e.tickets?.vip || 0}" /></td>
+          <td>
+            <select data-key="${key}" class="editEventStatus" aria-label="Status event">
+              <option value="wordt_mogelijk_afgelast" ${e.status === 'wordt_mogelijk_afgelast' ? 'selected' : ''}>Wordt mogelijk afgelast</option>
+              <option value="geannuleerd" ${e.status === 'geannuleerd' ? 'selected' : ''}>Geannuleerd</option>
+              <option value="gewoon" ${(!e.status || e.status === 'gewoon') ? 'selected' : ''}>Gewoon</option>
+            </select>
+          </td>
           <td>
             <button class="saveEventBtn" data-key="${key}">Opslaan</button>
             <button class="deleteEventBtn" data-key="${key}" style="background:#ef4444;">Verwijderen</button>
@@ -240,77 +245,100 @@
     const d = new Date(dateStr);
     const pad = n => n.toString().padStart(2,'0');
     const YYYY = d.getFullYear();
-    const MM = pad(d.getMonth()+1);
+    const MM = pad(d.getMonth() + 1);
     const DD = pad(d.getDate());
-    const HH = pad(d.getHours());
+    const hh = pad(d.getHours());
     const mm = pad(d.getMinutes());
-    return `${YYYY}-${MM}-${DD}T${HH}:${mm}`;
+    return `${YYYY}-${MM}-${DD}T${hh}:${mm}`;
   }
 
+  // Event handlers voor opslaan en verwijderen
   function attachEventTableHandlers() {
     document.querySelectorAll('.saveEventBtn').forEach(btn => {
       btn.onclick = () => {
         const key = btn.dataset.key;
-        const name = document.querySelector(`.editEventName[data-key="${key}"]`).value.trim();
-        const date = document.querySelector(`.editEventDate[data-key="${key}"]`).value;
-        const normal = parseInt(document.querySelector(`.editNormalTickets[data-key="${key}"]`).value) || 0;
-        const vip = parseInt(document.querySelector(`.editVipTickets[data-key="${key}"]`).value) || 0;
+        const row = btn.closest('tr');
+        const name = row.querySelector('.editEventName').value.trim();
+        const date = row.querySelector('.editEventDate').value;
+        const normalTickets = parseInt(row.querySelector('.editNormalTickets').value) || 0;
+        const vipTickets = parseInt(row.querySelector('.editVipTickets').value) || 0;
+        const status = row.querySelector('.editEventStatus').value;
 
-        if(!name || !date) {
-          eventMessage.textContent = 'Naam en datum zijn verplicht.';
+        if (!name) {
+          alert('Naam mag niet leeg zijn.');
           return;
         }
-        eventMessage.textContent = '';
+        if (!date) {
+          alert('Datum en tijd zijn verplicht.');
+          return;
+        }
 
-        db.ref(`events/${key}`).update({
+        const eventData = {
           name,
-          date: new Date(date).toISOString(),
-          tickets: { normal, vip }
-        }).then(() => {
-          eventMessage.textContent = 'Event opgeslagen!';
+          date,
+          tickets: {
+            normal: normalTickets,
+            vip: vipTickets
+          },
+          status: status || 'gewoon'
+        };
+        db.ref('events/' + key).set(eventData).then(() => {
+          alert('Event opgeslagen.');
           loadEventsTable();
           loadEventsForTickets();
-        }).catch(() => {
-          eventMessage.textContent = 'Fout bij opslaan event.';
+        }).catch(err => {
+          alert('Fout bij opslaan: ' + err.message);
         });
       };
     });
 
     document.querySelectorAll('.deleteEventBtn').forEach(btn => {
       btn.onclick = () => {
+        if(!confirm('Weet je zeker dat je dit event wilt verwijderen?')) return;
         const key = btn.dataset.key;
-        if(confirm('Weet je zeker dat je dit event wilt verwijderen?')) {
-          db.ref(`events/${key}`).remove().then(() => {
-            eventMessage.textContent = 'Event verwijderd.';
-            loadEventsTable();
-            loadEventsForTickets();
-          });
-        }
+        db.ref('events/' + key).remove().then(() => {
+          alert('Event verwijderd.');
+          loadEventsTable();
+          loadEventsForTickets();
+        }).catch(err => {
+          alert('Fout bij verwijderen: ' + err.message);
+        });
       };
     });
   }
 
   addEventBtn.onclick = () => {
+    eventMessage.textContent = '';
     const name = newEventName.value.trim();
     const date = newEventDate.value;
-    if(!name || !date) {
-      eventMessage.textContent = 'Vul naam en datum in!';
+
+    if (!name) {
+      eventMessage.textContent = 'Naam is verplicht.';
       return;
     }
-    eventMessage.textContent = '';
-    const newKey = db.ref('events').push().key;
-    db.ref(`events/${newKey}`).set({
+    if (!date) {
+      eventMessage.textContent = 'Datum en tijd zijn verplicht.';
+      return;
+    }
+
+    const newEvent = {
       name,
-      date: new Date(date).toISOString(),
-      tickets: { normal: 0, vip: 0 }
-    }).then(() => {
-      eventMessage.textContent = 'Nieuw event toegevoegd!';
+      date,
+      tickets: {
+        normal: 0,
+        vip: 0
+      },
+      status: 'gewoon'  // Default status bij nieuw event
+    };
+
+    db.ref('events').push(newEvent).then(() => {
+      eventMessage.textContent = 'Event toegevoegd!';
       newEventName.value = '';
       newEventDate.value = '';
       loadEventsTable();
       loadEventsForTickets();
-    }).catch(() => {
-      eventMessage.textContent = 'Fout bij toevoegen event.';
+    }).catch(err => {
+      eventMessage.textContent = 'Fout bij toevoegen: ' + err.message;
     });
   };
 
@@ -323,60 +351,75 @@
   const ticketsMessage = document.getElementById('ticketsMessage');
 
   function loadEventsForTickets() {
-    selectEventTickets.innerHTML = '';
+    selectEventTickets.innerHTML = '<option value="">Selecteer een event</option>';
     db.ref('events').once('value').then(snap => {
       const events = snap.val() || {};
       for (const key in events) {
         const e = events[key];
-        selectEventTickets.innerHTML += `<option value="${key}">${e.name}</option>`;
+        const option = document.createElement('option');
+        option.value = key;
+        option.textContent = e.name;
+        selectEventTickets.appendChild(option);
       }
-      if(selectEventTickets.options.length) {
-        selectEventTickets.selectedIndex = 0;
-        loadSelectedEventTickets(selectEventTickets.value);
-      }
-      selectEventTickets.onchange = () => {
-        loadSelectedEventTickets(selectEventTickets.value);
-        ticketsMessage.textContent = '';
-      };
     });
   }
 
-  function loadSelectedEventTickets(eventKey) {
-    db.ref(`events/${eventKey}/tickets`).once('value').then(snap => {
-      const tickets = snap.val() || {};
-      normalTicketsInput.value = tickets.normal || 0;
-      vipTicketsInput.value = tickets.vip || 0;
+  selectEventTickets.onchange = () => {
+    ticketsMessage.textContent = '';
+    const key = selectEventTickets.value;
+    if(!key) {
+      normalTicketsInput.value = '';
+      vipTicketsInput.value = '';
+      return;
+    }
+    db.ref('events/' + key).once('value').then(snap => {
+      const e = snap.val();
+      normalTicketsInput.value = e.tickets?.normal || 0;
+      vipTicketsInput.value = e.tickets?.vip || 0;
     });
-  }
+  };
 
   updateTicketsBtn.onclick = () => {
-    const key = selectEventTickets.value;
-    const normal = parseInt(normalTicketsInput.value) || 0;
-    const vip = parseInt(vipTicketsInput.value) || 0;
     ticketsMessage.textContent = '';
+    const key = selectEventTickets.value;
+    if(!key) {
+      ticketsMessage.textContent = 'Selecteer eerst een event.';
+      return;
+    }
+    const normalTickets = parseInt(normalTicketsInput.value) || 0;
+    const vipTickets = parseInt(vipTicketsInput.value) || 0;
 
-    db.ref(`events/${key}/tickets`).set({ normal, vip })
-      .then(() => {
-        ticketsMessage.textContent = 'Tickets bijgewerkt!';
-        loadEventsTable();
-      })
-      .catch(() => {
-        ticketsMessage.textContent = 'Fout bij bijwerken tickets.';
-      });
+    db.ref('events/' + key + '/tickets').set({
+      normal: normalTickets,
+      vip: vipTickets
+    }).then(() => {
+      ticketsMessage.textContent = 'Tickets bijgewerkt.';
+      loadEventsTable();
+    }).catch(err => {
+      ticketsMessage.textContent = 'Fout bij bijwerken: ' + err.message;
+    });
   };
 
   resetTicketsBtn.onclick = () => {
-    if(!confirm('Weet je zeker dat je alle tickets voor dit event wilt resetten naar 0?')) return;
+    ticketsMessage.textContent = '';
     const key = selectEventTickets.value;
-    db.ref(`events/${key}/tickets`).set({ normal: 0, vip: 0 })
-      .then(() => {
-        ticketsMessage.textContent = 'Tickets gereset naar 0!';
-        loadSelectedEventTickets(key);
-        loadEventsTable();
-      })
-      .catch(() => {
-        ticketsMessage.textContent = 'Fout bij resetten tickets.';
-      });
+    if(!key) {
+      ticketsMessage.textContent = 'Selecteer eerst een event.';
+      return;
+    }
+    if(!confirm('Weet je zeker dat je alle tickets wilt resetten naar 0?')) return;
+
+    db.ref('events/' + key + '/tickets').set({
+      normal: 0,
+      vip: 0
+    }).then(() => {
+      ticketsMessage.textContent = 'Tickets gereset.';
+      normalTicketsInput.value = 0;
+      vipTicketsInput.value = 0;
+      loadEventsTable();
+    }).catch(err => {
+      ticketsMessage.textContent = 'Fout bij resetten: ' + err.message;
+    });
   };
 
   // VIP CODES MANAGEMENT
@@ -388,113 +431,74 @@
 
   function loadVipCodes() {
     vipCodesTableBody.innerHTML = '';
-    db.ref('vipPasswords').once('value').then(snap => {
+    db.ref('vipCodes').once('value').then(snap => {
       const codes = snap.val() || {};
-      for(const code in codes) {
-        const d = codes[code];
+      for(const key in codes) {
+        const c = codes[key];
         const tr = document.createElement('tr');
         tr.innerHTML = `
-          <td>${code}</td>
-          <td><input type="number" min="1" data-code="${code}" class="editVipLimit" value="${d.limit || 1}" /></td>
-          <td>${d.used || 0}</td>
-          <td>
-            <button class="saveVipBtn" data-code="${code}">Opslaan</button>
-            <button class="resetVipBtn" data-code="${code}" style="background:#f87171;">Reset gebruik</button>
-            <button class="deleteVipBtn" data-code="${code}" style="background:#ef4444;">Verwijderen</button>
-          </td>
+          <td>${c.code}</td>
+          <td>${c.limit}</td>
+          <td>${c.used || 0}</td>
+          <td><button class="deleteVipCodeBtn" data-key="${key}" style="background:#ef4444;">Verwijderen</button></td>
         `;
         vipCodesTableBody.appendChild(tr);
       }
-      attachVipHandlers();
+      attachVipCodeHandlers();
     });
   }
 
-  function attachVipHandlers() {
-    document.querySelectorAll('.saveVipBtn').forEach(btn => {
+  function attachVipCodeHandlers() {
+    document.querySelectorAll('.deleteVipCodeBtn').forEach(btn => {
       btn.onclick = () => {
-        const code = btn.dataset.code;
-        const limitInput = document.querySelector(`.editVipLimit[data-code="${code}"]`);
-        const limit = parseInt(limitInput.value) || 1;
-        if(limit < 1) {
-          vipMessage.textContent = 'Limit moet minimaal 1 zijn.';
-          return;
-        }
-        vipMessage.textContent = '';
-        db.ref(`vipPasswords/${code}`).update({ limit })
-          .then(() => {
-            vipMessage.textContent = 'VIP code bijgewerkt!';
-            loadVipCodes();
-          })
-          .catch(() => {
-            vipMessage.textContent = 'Fout bij bijwerken VIP code.';
-          });
-      };
-    });
-
-    document.querySelectorAll('.resetVipBtn').forEach(btn => {
-      btn.onclick = () => {
-        const code = btn.dataset.code;
-        if(!confirm(`Reset gebruik voor VIP code "${code}"?`)) return;
-        db.ref(`vipPasswords/${code}/used`).set(0)
-          .then(() => {
-            vipMessage.textContent = 'Gebruik gereset!';
-            loadVipCodes();
-          })
-          .catch(() => {
-            vipMessage.textContent = 'Fout bij resetten gebruik.';
-          });
-      };
-    });
-
-    document.querySelectorAll('.deleteVipBtn').forEach(btn => {
-      btn.onclick = () => {
-        const code = btn.dataset.code;
-        if(!confirm(`Weet je zeker dat je VIP code "${code}" wilt verwijderen?`)) return;
-        db.ref(`vipPasswords/${code}`).remove()
-          .then(() => {
-            vipMessage.textContent = 'VIP code verwijderd!';
-            loadVipCodes();
-          })
-          .catch(() => {
-            vipMessage.textContent = 'Fout bij verwijderen VIP code.';
-          });
+        if(!confirm('Weet je zeker dat je deze VIP code wilt verwijderen?')) return;
+        const key = btn.dataset.key;
+        db.ref('vipCodes/' + key).remove().then(() => {
+          vipMessage.textContent = 'VIP code verwijderd.';
+          loadVipCodes();
+        }).catch(err => {
+          vipMessage.textContent = 'Fout bij verwijderen: ' + err.message;
+        });
       };
     });
   }
 
   addVipCodeBtn.onclick = () => {
+    vipMessage.textContent = '';
     const code = newVipCode.value.trim();
     const limit = parseInt(newVipLimit.value) || 1;
+
     if(!code) {
-      vipMessage.textContent = 'Voer een VIP code in.';
+      vipMessage.textContent = 'Code mag niet leeg zijn.';
       return;
     }
     if(limit < 1) {
       vipMessage.textContent = 'Limit moet minimaal 1 zijn.';
       return;
     }
-    vipMessage.textContent = '';
-    db.ref(`vipPasswords/${code}`).set({ limit, used: 0 })
-      .then(() => {
-        vipMessage.textContent = 'VIP code toegevoegd!';
-        newVipCode.value = '';
-        newVipLimit.value = '1';
-        loadVipCodes();
-      })
-      .catch(() => {
-        vipMessage.textContent = 'Fout bij toevoegen VIP code.';
-      });
+
+    db.ref('vipCodes').push({
+      code,
+      limit,
+      used: 0
+    }).then(() => {
+      vipMessage.textContent = 'VIP code toegevoegd!';
+      newVipCode.value = '';
+      newVipLimit.value = '1';
+      loadVipCodes();
+    }).catch(err => {
+      vipMessage.textContent = 'Fout bij toevoegen: ' + err.message;
+    });
   };
 
-  // LOGOUT
+  // Logout
   const logoutBtn = document.getElementById('logoutBtn');
   logoutBtn.onclick = () => {
     managerContent.classList.add('hidden');
     loginSection.classList.remove('hidden');
     passwordInput.value = '';
-    loginMessage.textContent = '';
   };
-</script>
 
+</script>
 </body>
 </html>
