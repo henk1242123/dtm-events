@@ -9,20 +9,20 @@
     background: #121212;
     color: #e0e0e0;
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    max-width: 480px;
+    max-width: 600px;
     margin: 3rem auto;
     padding: 1rem;
   }
   h1 {
     text-align: center;
     color: #4ade80;
-    margin-bottom: 2rem;
+    margin-bottom: 1rem;
     font-weight: 700;
   }
-  select, input[type=text], button {
+  select, input, button {
     width: 100%;
     padding: 0.6rem 0.8rem;
-    margin: 0.5rem 0;
+    margin-top: 0.5rem;
     border-radius: 8px;
     border: none;
     font-size: 1rem;
@@ -33,39 +33,35 @@
     color: #121212;
     font-weight: 700;
     cursor: pointer;
-    transition: background-color 0.2s ease;
+    margin-top: 1rem;
     border: none;
+    transition: background-color 0.2s ease;
   }
-  button:hover:not(:disabled) {
+  button:hover {
     background-color: #22c55e;
   }
-  button:disabled {
-    background-color: #555;
-    cursor: not-allowed;
+  .section {
+    background: #1f1f1f;
+    border-radius: 10px;
+    padding: 1rem;
+    margin-bottom: 1.5rem;
   }
-  #vipSection {
-    margin-top: 1rem;
-    display: none;
-  }
-  #vipCodeInput {
-    margin-bottom: 0.4rem;
-  }
-  #vipMessage, #mainMessage {
-    font-weight: 600;
-    min-height: 1.5em;
-    margin-top: 0.4rem;
-  }
-  #vipMessage {
-    color: #facc15;
+  #countdown {
+    font-size: 1.2rem;
+    font-weight: 700;
+    text-align: center;
+    margin-bottom: 1rem;
+    color: #86efac;
   }
   #mainMessage {
-    color: #4ade80;
+    margin-top: 1rem;
+    font-weight: 700;
+    min-height: 1.5em;
   }
-  #eventDetails {
-    margin-bottom: 1rem;
-    font-size: 0.9rem;
-    color: #bbb;
-    text-align: center;
+  label {
+    font-weight: 600;
+    margin-top: 0.8rem;
+    display: block;
   }
 </style>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
@@ -75,25 +71,33 @@
 
 <h1>DTM Events - Tickets kopen</h1>
 
-<label for="eventsSelect">Kies een event</label>
-<select id="eventsSelect">
-  <option value="" disabled selected>-- Kies een event --</option>
-</select>
+<div class="section">
+  <label for="eventsSelect">Kies een event:</label>
+  <select id="eventsSelect" aria-label="Selecteer een event"></select>
 
-<div id="eventDetails"></div>
+  <div id="countdown" aria-live="polite" role="timer"></div>
 
-<div id="ticketsSold" style="text-align:center; font-size:0.9rem; color:#aaa; margin-bottom: 1rem;"></div>
-
-<button id="buyNormal" disabled>Koop Normaal Ticket (15 Robux)</button>
-
-<div id="vipSection">
-  <input type="text" id="vipCodeInput" placeholder="Voer VIP code in" autocomplete="off" />
-  <button id="verifyVip">Verifieer VIP Code</button>
-  <div id="vipMessage"></div>
-  <button id="buyVip" disabled>Koop VIP Ticket (35 Robux)</button>
+  <div>
+    <strong>Tickets verkocht:</strong><br>
+    Normaal: <span id="normalTicketsCount">0</span><br>
+    VIP: <span id="vipTicketsCount">0</span>
+  </div>
 </div>
 
-<div id="mainMessage" role="alert" aria-live="polite"></div>
+<div class="section">
+  <h2>Normaal ticket kopen (gratis)</h2>
+  <button id="buyNormalBtn">Koop normaal ticket</button>
+</div>
+
+<div class="section">
+  <h2>VIP ticket kopen (35 Robux) met code</h2>
+  <label for="vipCodeInput">VIP code:</label>
+  <input type="text" id="vipCodeInput" autocomplete="off" aria-describedby="vipMessage" />
+  <div id="vipMessage" style="color:#fbbf24; margin-bottom: 0.5rem;"></div>
+  <button id="buyVipBtn" disabled>Koop VIP ticket</button>
+</div>
+
+<div id="mainMessage" aria-live="polite"></div>
 
 <script>
   const firebaseConfig = {
@@ -110,153 +114,147 @@
   const db = firebase.database();
 
   const eventsSelect = document.getElementById('eventsSelect');
-  const eventDetails = document.getElementById('eventDetails');
-  const ticketsSold = document.getElementById('ticketsSold');
-  const buyNormalBtn = document.getElementById('buyNormal');
-  const vipSection = document.getElementById('vipSection');
+  const countdown = document.getElementById('countdown');
+  const normalTicketsCount = document.getElementById('normalTicketsCount');
+  const vipTicketsCount = document.getElementById('vipTicketsCount');
+  const buyNormalBtn = document.getElementById('buyNormalBtn');
+  const buyVipBtn = document.getElementById('buyVipBtn');
   const vipCodeInput = document.getElementById('vipCodeInput');
-  const verifyVipBtn = document.getElementById('verifyVip');
   const vipMessage = document.getElementById('vipMessage');
-  const buyVipBtn = document.getElementById('buyVip');
   const mainMessage = document.getElementById('mainMessage');
 
   let currentEventKey = null;
   let vipCodeValid = false;
-  let vipCode = '';
 
-  function clearMessages() {
-    mainMessage.textContent = '';
-    vipMessage.textContent = '';
+  // Timer interval id
+  let timerInterval = null;
+
+  function updateCountdown(dateString) {
+    clearInterval(timerInterval);
+    function update() {
+      const eventDate = new Date(dateString);
+      const now = new Date();
+      const diff = eventDate - now;
+      if (diff <= 0) {
+        countdown.textContent = 'Het event is bezig of voorbij.';
+        clearInterval(timerInterval);
+        return;
+      }
+      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+      const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
+      const minutes = Math.floor((diff / (1000 * 60)) % 60);
+      const seconds = Math.floor((diff / 1000) % 60);
+      countdown.textContent = `Nog ${days} dagen ${hours} uur ${minutes} min ${seconds} sec tot het event`;
+    }
+    update();
+    timerInterval = setInterval(update, 1000);
   }
 
-  function formatDate(d) {
-    if (!d) return '';
-    const dt = new Date(d);
-    return dt.toLocaleDateString('nl-NL', { day:'2-digit', month:'long', year:'numeric' });
-  }
-
-  // Laad events en vul dropdown
+  // Laad events in dropdown
   function loadEvents() {
     db.ref('events').on('value', snapshot => {
       const events = snapshot.val() || {};
-      eventsSelect.innerHTML = '<option value="" disabled selected>-- Kies een event --</option>';
+      eventsSelect.innerHTML = '';
+      if (Object.keys(events).length === 0) {
+        eventsSelect.innerHTML = '<option>Geen events beschikbaar</option>';
+        countdown.textContent = '';
+        normalTicketsCount.textContent = '0';
+        vipTicketsCount.textContent = '0';
+        currentEventKey = null;
+        return;
+      }
       for (const key in events) {
         const ev = events[key];
-        eventsSelect.innerHTML += `<option value="${key}">${ev.name} — ${formatDate(ev.date)}</option>`;
+        const option = document.createElement('option');
+        option.value = key;
+        option.textContent = `${ev.name} (${new Date(ev.date).toLocaleDateString('nl-NL')})`;
+        eventsSelect.appendChild(option);
       }
+      // Selecteer eerste event standaard
+      if (!currentEventKey) {
+        currentEventKey = eventsSelect.value;
+      }
+      updateEventInfo(currentEventKey);
     });
   }
 
-  // Update event details en ticket info
-  function updateEventInfo(key) {
-    if (!key) {
-      eventDetails.textContent = '';
-      ticketsSold.textContent = '';
-      buyNormalBtn.disabled = true;
-      vipSection.style.display = 'none';
-      vipCodeInput.value = '';
-      vipMessage.textContent = '';
-      buyVipBtn.disabled = true;
-      vipCodeValid = false;
-      vipCode = '';
-      return;
-    }
-    currentEventKey = key;
-    clearMessages();
-    db.ref(`events/${key}`).once('value').then(snap => {
-      const ev = snap.val();
+  // Update info bij event wissel
+  function updateEventInfo(eventKey) {
+    currentEventKey = eventKey;
+    db.ref(`events/${eventKey}`).once('value').then(snapshot => {
+      const ev = snapshot.val();
       if (!ev) return;
-      eventDetails.textContent = `Datum: ${formatDate(ev.date)}`;
-      const normal = ev.tickets?.normal || 0;
-      const vip = ev.tickets?.vip || 0;
-      ticketsSold.textContent = `Normale tickets verkocht: ${normal} | VIP tickets verkocht: ${vip}`;
-      buyNormalBtn.disabled = false;
-      vipSection.style.display = 'block';
-      buyVipBtn.disabled = true;
-      vipCodeValid = false;
-      vipCodeInput.value = '';
-      vipMessage.textContent = '';
+      normalTicketsCount.textContent = ev.tickets?.normal || 0;
+      vipTicketsCount.textContent = ev.tickets?.vip || 0;
+      updateCountdown(ev.date);
     });
+    resetVipCode();
   }
 
-  // Normaal ticket kopen
+  eventsSelect.addEventListener('change', () => {
+    updateEventInfo(eventsSelect.value);
+  });
+
+  // Normaal ticket kopen (gratis)
   buyNormalBtn.onclick = () => {
-    clearMessages();
     if (!currentEventKey) return;
-    db.ref(`events/${currentEventKey}/tickets/normal`).transaction(count => (count || 0) + 1)
-      .then(() => {
-        mainMessage.style.color = '#4ade80';
-        mainMessage.textContent = '🎉 Je hebt een normaal ticket gekocht!';
-        updateEventInfo(currentEventKey);
-      })
-      .catch(() => {
-        mainMessage.style.color = 'crimson';
-        mainMessage.textContent = 'Er is iets misgegaan, probeer later opnieuw.';
-      });
+    const eventNormalTicketsRef = db.ref(`events/${currentEventKey}/tickets/normal`);
+    eventNormalTicketsRef.transaction(count => (count || 0) + 1).then(() => {
+      mainMessage.style.color = '#4ade80';
+      mainMessage.textContent = '🎉 Normaal ticket gekocht! Veel plezier!';
+    }).catch(() => {
+      mainMessage.style.color = 'crimson';
+      mainMessage.textContent = 'Fout bij kopen ticket, probeer later.';
+    });
   };
 
-  // VIP code verifiëren
-  verifyVipBtn.onclick = () => {
+  // VIP code validatie
+  vipCodeInput.oninput = () => {
     const code = vipCodeInput.value.trim();
-    vipMessage.style.color = '#facc15';
-    vipMessage.textContent = 'Controleren...';
+    vipMessage.textContent = '';
     buyVipBtn.disabled = true;
-    if (!code) {
-      vipMessage.style.color = 'crimson';
-      vipMessage.textContent = 'Vul een VIP code in.';
-      return;
-    }
-    db.ref(`vipPasswords/${code}`).get().then(snap => {
-      const data = snap.val();
+    vipCodeValid = false;
+    if (!code) return;
+
+    db.ref(`vipPasswords/${code}`).once('value').then(snapshot => {
+      const data = snapshot.val();
       if (!data) {
-        vipMessage.style.color = 'crimson';
-        vipMessage.textContent = 'Ongeldige VIP code.';
-        vipCodeValid = false;
-        buyVipBtn.disabled = true;
+        vipMessage.textContent = 'VIP code niet gevonden.';
         return;
       }
       if ((data.used || 0) >= (data.limit || 0)) {
-        vipMessage.style.color = 'crimson';
-        vipMessage.textContent = 'Deze VIP code is al gebruikt of verlopen.';
-        vipCodeValid = false;
-        buyVipBtn.disabled = true;
+        vipMessage.textContent = 'Deze VIP code is al gebruikt of limiet bereikt.';
         return;
       }
-      vipMessage.style.color = '#4ade80';
-      vipMessage.textContent = 'VIP code geverifieerd! Je kunt nu VIP ticket kopen.';
-      vipCodeValid = true;
+      vipMessage.textContent = 'VIP code geldig!';
       buyVipBtn.disabled = false;
-      vipCode = code;
+      vipCodeValid = true;
     }).catch(() => {
-      vipMessage.style.color = 'crimson';
-      vipMessage.textContent = 'Fout bij controle, probeer later opnieuw.';
-      vipCodeValid = false;
-      buyVipBtn.disabled = true;
+      vipMessage.textContent = 'Fout bij controleren VIP code.';
     });
   };
 
   // VIP ticket kopen
   buyVipBtn.onclick = () => {
-    clearMessages();
     if (!currentEventKey || !vipCodeValid) {
       mainMessage.style.color = 'crimson';
       mainMessage.textContent = 'VIP code niet geverifieerd.';
       return;
     }
-    // update ticket count & VIP code usage atomisch
-    const eventTicketsRef = db.ref(`events/${currentEventKey}/tickets/vip`);
+
+    const vipCode = vipCodeInput.value.trim();
+    const eventVipTicketsRef = db.ref(`events/${currentEventKey}/tickets/vip`);
     const vipCodeRef = db.ref(`vipPasswords/${vipCode}`);
 
-    // gebruik transaction om race-condities te voorkomen
     vipCodeRef.transaction(data => {
       if (data) {
         if ((data.used || 0) >= (data.limit || 0)) {
-          return; // code al gebruikt, afbreken
+          return; // code al gebruikt, stop
         }
         data.used = (data.used || 0) + 1;
         return data;
       }
-      return; // code bestaat niet, afbreken
+      return; // code bestaat niet, stop
     }, (error, committed, snapshot) => {
       if (error || !committed) {
         mainMessage.style.color = 'crimson';
@@ -265,8 +263,7 @@
         vipCodeValid = false;
         return;
       }
-      // nu tickets verhogen
-      eventTicketsRef.transaction(count => (count || 0) + 1).then(() => {
+      eventVipTicketsRef.transaction(count => (count || 0) + 1).then(() => {
         mainMessage.style.color = '#4ade80';
         mainMessage.textContent = '🎉 VIP ticket gekocht! Bedankt!';
         buyVipBtn.disabled = true;
@@ -279,11 +276,6 @@
         mainMessage.textContent = 'Fout bij kopen ticket, probeer later.';
       });
     });
-  };
-
-  // Event selectie wijzigen
-  eventsSelect.onchange = () => {
-    updateEventInfo(eventsSelect.value);
   };
 
   // Manager pagina openen met CTRL+L
