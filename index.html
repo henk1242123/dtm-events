@@ -68,7 +68,6 @@
     #statusMessage {
       margin-top: 1rem;
       font-weight: 900;
-      color: #dc2626; /* rood */
       font-size: 1.3rem;
       text-align: center;
     }
@@ -185,32 +184,32 @@
 
     db.ref(`events/${key}`).once('value').then(snapshot => {
       const ev = snapshot.val();
-
-console.log('Geselecteerd event:', ev);
-console.log('Status:', ev.status);
-
-
-      normalCount.textContent = ev.tickets.normal || 0;
-      vipCount.textContent = ev.tickets.vip || 0;
-
       if (!ev) return;
 
-      // Status bericht tonen in rood dik onder dropdown
+      normalCount.textContent = ev.tickets?.normal || 0;
+      vipCount.textContent = ev.tickets?.vip || 0;
+
+      // Status bericht tonen met kleur en dikgedrukt
       if (ev.status === 'mogelijk_afgelast') {
         statusMessage.textContent = 'WORDT MOGELIJK AFGELAST';
         statusMessage.style.color = '#dc2626'; // rood
       } else if (ev.status === 'afgelast') {
         statusMessage.textContent = 'EVENT AFGELAST';
         statusMessage.style.color = '#dc2626'; // rood
+      } else if (ev.status === 'voorbij') {
+        statusMessage.textContent = 'EVENT IS VOORBIJ';
+        statusMessage.style.color = '#fbbf24'; // geel
       } else {
         statusMessage.textContent = '';
       }
 
-      // Disable knoppen als event is afgelast
-      if (ev.status === 'afgelast') {
+      // Knoppen in- of uitschakelen op basis van status
+      if (ev.status === 'afgelast' || ev.status === 'voorbij') {
         buyNormalBtn.disabled = true;
         buyVipBtn.disabled = true;
-        mainMessage.textContent = 'Dit event is afgecancelld. Tickets kunnen niet gekocht worden.';
+        mainMessage.textContent = ev.status === 'afgelast'
+          ? 'Dit event is afgecancelld. Tickets kunnen niet gekocht worden.'
+          : 'Dit event is voorbij. Tickets kunnen niet gekocht worden.';
       } else {
         buyNormalBtn.disabled = false;
         buyVipBtn.disabled = !vipValid;
@@ -285,9 +284,10 @@ console.log('Status:', ev.status);
       vipMessage.textContent = 'VIP code geldig!';
       vipValid = true;
 
-      // Alleen enable knop als event niet afgelast is
+      // Alleen enable knop als event niet afgelast of voorbij is
       db.ref(`events/${currentEvent}/status`).once('value').then(snap => {
-        if (snap.val() === 'afgelast') {
+        const status = snap.val();
+        if (status === 'afgelast' || status === 'voorbij') {
           buyVipBtn.disabled = true;
         } else {
           buyVipBtn.disabled = false;
