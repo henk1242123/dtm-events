@@ -1,110 +1,19 @@
 <!DOCTYPE html>
 <html lang="nl">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>DTM Events Manager</title>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Manager - DTM Events</title>
 <style>
-  body {
-    background: #121212;
-    color: #e0e0e0;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    max-width: 600px;
-    margin: 3rem auto;
-    padding: 1rem;
-  }
-  h1 {
-    text-align: center;
-    color: #4ade80;
-    margin-bottom: 2rem;
-    font-weight: 700;
-  }
-  form {
-    margin-bottom: 2rem;
-    background: #1f1f1f;
-    padding: 1rem;
-    border-radius: 10px;
-  }
-  label {
-    display: block;
-    margin: 0.6rem 0 0.3rem;
-  }
-  input[type=text], input[type=date], input[type=number], button {
-    width: 100%;
-    padding: 0.6rem 0.8rem;
-    border-radius: 8px;
-    border: none;
-    font-size: 1rem;
-    box-sizing: border-box;
-  }
-  button {
-    background-color: #4ade80;
-    color: #121212;
-    font-weight: 700;
-    cursor: pointer;
-    margin-top: 1rem;
-    border: none;
-    transition: background-color 0.2s ease;
-  }
-  button:hover {
-    background-color: #22c55e;
-  }
-  .item {
-    background: #1f1f1f;
-    border-radius: 10px;
-    padding: 1rem;
-    margin-bottom: 1rem;
-  }
-  .item-controls {
-    margin-top: 0.8rem;
-    text-align: right;
-  }
-  .item-controls button {
-    background-color: #ef4444;
-    color: white;
-    font-weight: 700;
-    padding: 0.4rem 0.8rem;
-    border-radius: 6px;
-    border: none;
-    cursor: pointer;
-    transition: background-color 0.2s ease;
-  }
-  .item-controls button:hover {
-    background-color: #b91c1c;
-  }
-  .vip-codes-list > div {
-    background: #1f1f1f;
-    border-radius: 10px;
-    padding: 1rem;
-    margin-bottom: 1rem;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.8rem;
-    flex-wrap: wrap;
-  }
-  .vip-codes-list input[type=number] {
-    width: 70px;
-  }
-  .vip-codes-list button {
-    background-color: #ef4444;
-    color: white;
-    font-weight: 700;
-    padding: 0.4rem 0.8rem;
-    border-radius: 6px;
-    border: none;
-    cursor: pointer;
-    transition: background-color 0.2s ease;
-  }
-  .vip-codes-list button:hover {
-    background-color: #b91c1c;
-  }
-  #message {
-    margin-bottom: 1rem;
-    font-weight: 700;
-    color: #4ade80;
-    min-height: 1.5em;
-  }
+  body { background:#121212; color:#e0e0e0; font-family:sans-serif; max-width:600px; margin:3rem auto; padding:1rem;}
+  h1 { text-align:center; color:#4ade80; margin-bottom:1.5rem;}
+  form, .item, .vip-item { background:#1f1f1f; padding:1rem; border-radius:8px; margin-bottom:1rem;}
+  input, button, select { width:100%; padding:0.6rem; margin-top:0.4rem; border:none; border-radius:6px; font-size:1rem; box-sizing:border-box;}
+  button { background:#4ade80; color:#121212; font-weight:700; border:none; margin-top:0.6rem; cursor:pointer; transition:background .2s;}
+  button:hover { background:#22c55e;}
+  .delete { background:#dc2626; color:#fff; }
+  .delete:hover { background:#b91c1c;}
+  label { font-weight:600; margin-top:0.6rem; display:block;}
+  #msg { font-weight:700; text-align:center; min-height:1.5em;}
 </style>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
@@ -112,178 +21,111 @@
 <body>
 
 <h1>DTM Events Manager</h1>
-<div id="message" role="alert" aria-live="polite"></div>
+<div id="msg"></div>
 
-<form id="addEventForm" autocomplete="off">
-  <h2>Nieuw Event toevoegen</h2>
-  <label for="eventName">Naam event:</label>
-  <input type="text" id="eventName" required placeholder="Naam event" />
-  <label for="eventDate">Datum event:</label>
-  <input type="date" id="eventDate" required />
-  <button type="submit">Event toevoegen</button>
-</form>
-
-<h2>Bestaande Events</h2>
-<div id="eventsList">Laden...</div>
-
-<h2>VIP Codes beheren</h2>
-<form id="addVipCodeForm" autocomplete="off">
-  <label for="newVipCode">Nieuwe VIP code:</label>
-  <input type="text" id="newVipCode" required placeholder="VIP code (bijv. supervip)" />
-  <label for="newVipLimit">Limiet gebruik:</label>
-  <input type="number" id="newVipLimit" min="1" value="5" required />
+<form id="addEventForm">
+  <h2>Event toevoegen</h2>
+  <label>Naam:</label><input type="text" id="eventName" required/>
+  <label>Datum:</label><input type="date" id="eventDate"/>
   <button type="submit">Toevoegen</button>
 </form>
-<div class="vip-codes-list" id="vipCodesList">Laden...</div>
+
+<h2>Bestaande Events (edit & delete)</h2>
+<div id="eventsList">Laden…</div>
+
+<h2>VIP Codes beheren</h2>
+<form id="addVipForm">
+  <label>Code:</label><input type="text" id="vipCode"/>
+  <label>Limiet:</label><input type="number" id="vipLimit" min="1" value="5"/>
+  <button type="submit">Voeg toe</button>
+</form>
+<div id="vipList">Laden…</div>
 
 <script>
-  // Manager password beveiliging
-  const managerPass = "admin123"; // verander dit naar jouw eigen wachtwoord!
-  if (prompt("Manager wachtwoord invoeren:") !== managerPass) {
-    alert("Ongeautoriseerde toegang!");
-    window.location.href = "index.html";
-  }
+  const pass="dtmadmin3";
+  const input=prompt("Wachtwoord?");
+  if(input!==pass) { document.body.innerHTML="<h1>Toegang geweigerd</h1>"; throw new Error("No access"); }
 
-  const firebaseConfig = {
-    apiKey: "AIzaSyAq2hnWZnhoMzVC_NZ3efND3xEkijRy23k",
-    authDomain: "dtm-evemts.firebaseapp.com",
-    databaseURL: "https://dtm-evemts-default-rtdb.europe-west1.firebasedatabase.app",
-    projectId: "dtm-evemts",
-    storageBucket: "dtm-evemts.firebasestorage.app",
-    messagingSenderId: "673592896357",
-    appId: "1:673592896357:web:4aa0d051ad738c12a80f8c",
-    measurementId: "G-GFRH4KY8GF"
-  };
+  const firebaseConfig = { apiKey:"...", authDomain:"dtm-evemts.firebaseapp.com", databaseURL:"https://dtm-evemts-default-rtdb.europe-west1.firebasedatabase.app", projectId:"dtm-evemts", storageBucket:"dtm-evemts.firebasestorage.app", messagingSenderId:"...", appId:"...", measurementId:"..." };
   firebase.initializeApp(firebaseConfig);
-  const db = firebase.database();
+  const db=firebase.database();
+  const msgEl=document.getElementById('msg');
+  const addEv=document.getElementById('addEventForm');
+  const eventsList=document.getElementById('eventsList');
+  const addVip=document.getElementById('addVipForm');
+  const vipList=document.getElementById('vipList');
 
-  const addEventForm = document.getElementById('addEventForm');
-  const eventNameInput = document.getElementById('eventName');
-  const eventDateInput = document.getElementById('eventDate');
-  const eventsList = document.getElementById('eventsList');
-  const message = document.getElementById('message');
-
-  // Nieuwe event toevoegen
-  addEventForm.onsubmit = e => {
-    e.preventDefault();
-    const name = eventNameInput.value.trim();
-    const date = eventDateInput.value;
-    if (!name || !date) return;
-    db.ref('events').push({
-      name,
-      date,
-      tickets: { normal: 0, vip: 0 }
-    }).then(() => {
-      message.textContent = 'Event toegevoegd!';
-      eventNameInput.value = '';
-      eventDateInput.value = '';
-    }).catch(() => {
-      message.style.color = 'crimson';
-      message.textContent = 'Fout bij toevoegen event.';
-    });
+  addEv.onsubmit=e=>{ e.preventDefault();
+    const n=document.getElementById('eventName').value.trim(), d=document.getElementById('eventDate').value;
+    if(!n||!d) return;
+    db.ref('events').push({name:n, date:d, tickets:{normal:0,vip:0}}).then(()=>msgEl.textContent='Event toegevoegd').catch(()=>msgEl.textContent='Fout bij toevoegen');
+    addEv.reset();
   };
 
-  // Events laden en tonen
   function loadEvents() {
-    db.ref('events').on('value', snapshot => {
-      const events = snapshot.val() || {};
-      eventsList.innerHTML = '';
-      if (Object.keys(events).length === 0) {
-        eventsList.textContent = 'Geen events gevonden.';
-        return;
-      }
-      for (const key in events) {
-        const ev = events[key];
-        const dateFormatted = new Date(ev.date).toLocaleDateString('nl-NL', {day:'2-digit', month:'short', year:'numeric'});
-        const div = document.createElement('div');
-        div.className = 'item';
-        div.innerHTML = `
-          <strong>${ev.name}</strong> — ${dateFormatted}
-          <div>Tickets verkocht: Normaal ${ev.tickets?.normal || 0} | VIP ${ev.tickets?.vip || 0}</div>
-          <div class="item-controls">
-            <button data-key="${key}" class="deleteEvent">Verwijderen</button>
-          </div>
-        `;
+    db.ref('events').on('value',snap=>{
+      const evs=snap.val()||{};
+      eventsList.innerHTML='';
+      for(const key in evs){
+        const ev=evs[key];
+        const div=document.createElement('div'); div.className='item';
+        div.innerHTML=`<strong>${ev.name}</strong> (${ev.date})
+          <label>Naam (wijzig):</label><input data-key="${key}" class="nameInput" type="text" value="${ev.name}"/>
+          <label>Datum (wijzig):</label><input data-key="${key}" class="dateInput" type="date" value="${ev.date}"/>
+          <button class="saveBtn" data-key="${key}">Opslaan</button>
+          <button class="delete deleteBtn" data-key="${key}">Verwijderen</button>`;
         eventsList.appendChild(div);
       }
-      document.querySelectorAll('.deleteEvent').forEach(btn => {
-        btn.onclick = () => {
-          if (confirm("Event verwijderen? Dit kan niet ongedaan worden gemaakt.")) {
-            const key = btn.getAttribute('data-key');
-            db.ref(`events/${key}`).remove();
-            message.textContent = 'Event verwijderd.';
-          }
+      document.querySelectorAll('.saveBtn').forEach(b=>{
+        b.onclick=()=> {
+          const k=b.dataset.key;
+          const nm=document.querySelector(`.nameInput[data-key="${k}"]`).value.trim();
+          const dt=document.querySelector(`.dateInput[data-key="${k}"]`).value;
+          if(!nm||!dt) return;
+          db.ref(`events/${k}`).update({name:nm, date:dt});
+          msgEl.textContent='Event bijgewerkt';
+        };
+      });
+      document.querySelectorAll('.deleteBtn').forEach(b=> {
+        b.onclick=()=> {
+          if(confirm('Verwijderen?')) db.ref(`events/${b.dataset.key}`).remove().then(()=>msgEl.textContent='Event verwijderd');
         };
       });
     });
   }
 
-  // VIP codes beheren
-  const addVipCodeForm = document.getElementById('addVipCodeForm');
-  const newVipCodeInput = document.getElementById('newVipCode');
-  const newVipLimitInput = document.getElementById('newVipLimit');
-  const vipCodesList = document.getElementById('vipCodesList');
-
-  addVipCodeForm.onsubmit = e => {
+  addVip.onsubmit=e=>{
     e.preventDefault();
-    const code = newVipCodeInput.value.trim();
-    const limit = parseInt(newVipLimitInput.value);
-    if (!code || !limit || limit < 1) return;
-    db.ref(`vipPasswords/${code}`).set({
-      limit,
-      used: 0
-    }).then(() => {
-      message.textContent = `VIP code "${code}" toegevoegd.`;
-      newVipCodeInput.value = '';
-      newVipLimitInput.value = 5;
-    }).catch(() => {
-      message.style.color = 'crimson';
-      message.textContent = 'Fout bij toevoegen VIP code.';
-    });
+    const c=document.getElementById('vipCode').value.trim();
+    const l=parseInt(document.getElementById('vipLimit').value);
+    if(!c||!l) return;
+    db.ref(`vipPasswords/${c}`).set({limit:l,used:0})
+    .then(()=>msgEl.textContent=`VIP code "${c}" toegevoegd`).catch(()=>msgEl.textContent='Fout bij toevoegen');
+    addVip.reset();
   };
 
-  function loadVipCodes() {
-    db.ref('vipPasswords').on('value', snapshot => {
-      const codes = snapshot.val() || {};
-      vipCodesList.innerHTML = '';
-      if (Object.keys(codes).length === 0) {
-        vipCodesList.textContent = "Geen VIP codes gevonden.";
-        return;
+  function loadVip(){
+    db.ref('vipPasswords').on('value',snap=>{
+      const v=snap.val()||{};
+      vipList.innerHTML='';
+      for(const code in v){
+        const d=v[code];
+        const div=document.createElement('div'); div.className='vip-item';
+        div.innerHTML=`<strong>${code}</strong> | Limiet: <input type="number" min="1" data-code="${code}" class="vipLimitInput" value="${d.limit}"/> | Gebruikt: ${d.used} 
+          <button class="delete deleteVipBtn" data-code="${code}">Verwijderen</button>`;
+        vipList.appendChild(div);
       }
-      for (const code in codes) {
-        const data = codes[code];
-        const div = document.createElement('div');
-        div.innerHTML = `
-          <strong>${code}</strong>
-          <label>Limiet: <input type="number" min="1" value="${data.limit}" data-code="${code}" class="vipLimitInput" /></label>
-          <span>Gebruikt: ${data.used || 0}</span>
-          <button data-code="${code}" class="deleteVip">Verwijderen</button>
-        `;
-        vipCodesList.appendChild(div);
-      }
-
-      // Limiet aanpassen
-      document.querySelectorAll('.vipLimitInput').forEach(input => {
-        input.onchange = () => {
-          const code = input.getAttribute('data-code');
-          let val = parseInt(input.value);
-          if (!val || val < 1) {
-            alert("Limiet moet minimaal 1 zijn.");
-            input.value = 1;
-            val = 1;
-          }
-          db.ref(`vipPasswords/${code}/limit`).set(val);
-          message.textContent = `Limiet VIP code "${code}" aangepast.`;
+      document.querySelectorAll('.vipLimitInput').forEach(inp=>{
+        inp.onchange=()=>{
+          const code=inp.dataset.code, val=parseInt(inp.value)||1;
+          db.ref(`vipPasswords/${code}/limit`).set(val).then(()=>msgEl.textContent=`Limiet ${code} aangepast`);
         };
       });
-
-      // Verwijderen
-      document.querySelectorAll('.deleteVip').forEach(btn => {
-        btn.onclick = () => {
-          if (confirm("VIP code verwijderen? Dit kan niet ongedaan worden gemaakt.")) {
-            const code = btn.getAttribute('data-code');
-            db.ref(`vipPasswords/${code}`).remove();
-            message.textContent = `VIP code "${code}" verwijderd.`;
+      document.querySelectorAll('.deleteVipBtn').forEach(b=>{
+        b.onclick=()=>{
+          if(confirm('VIP code verwijderen?')) {
+            db.ref(`vipPasswords/${b.dataset.code}`).remove()
+            .then(()=>msgEl.textContent=`VIP code "${b.dataset.code}" verwijderd`);
           }
         };
       });
@@ -291,8 +133,7 @@
   }
 
   loadEvents();
-  loadVipCodes();
-
+  loadVip();
 </script>
 </body>
 </html>
