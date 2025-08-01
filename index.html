@@ -4,38 +4,72 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>DTM Events - Tickets kopen</title>
-  <link rel="icon" type="image/png" href="dtm-logo.png" />
   <style>
-    body { background: #121212; color: #e0e0e0; font-family: sans-serif; max-width: 600px; margin: 3rem auto; padding: 1rem; }
-    h1 { text-align: center; color: #4ade80; margin-bottom: 1rem; }
-    .section { background: #1f1f1f; border-radius: 10px; padding: 1rem; margin-bottom: 1.5rem; }
-    select, input, button { width: 100%; padding: 0.6rem; margin-top: 0.5rem; border-radius: 8px; border: none; font-size: 1rem; box-sizing: border-box; }
-    button { background: #4ade80; color: #121212; font-weight: 700; cursor: pointer; transition: background 0.2s; }
-    button:hover:not(:disabled) { background: #22c55e; }
-    button:disabled { background: #555; cursor: not-allowed; }
-    #countdown { font-size: 1.1rem; text-align: center; margin-top: 0.5rem; color: #86efac; }
-    #mainMessage { margin-top: 1rem; font-weight: 700; min-height: 1.5em; }
-    label { font-weight: 600; margin-top: 0.8rem; display: block; }
-
-    /* Status kleuren */
-    .status {
-      font-weight: 700;
-      margin-left: 0.5rem;
-      padding: 0.1rem 0.5rem;
-      border-radius: 6px;
-      font-size: 0.85rem;
-      vertical-align: middle;
+    body {
+      background: #121212;
+      color: #e0e0e0;
+      font-family: sans-serif;
+      max-width: 600px;
+      margin: 3rem auto;
+      padding: 1rem;
     }
-    .mogelijk_afgelast { background: #facc15; color: #1f1f1f; } /* geel */
-    .afgelast { background: #dc2626; color: #fff; } /* rood */
-    .voorbij { background: #6b7280; color: #e0e0e0; } /* grijs */
+    h1 {
+      text-align: center;
+      color: #4ade80;
+      margin-bottom: 1rem;
+    }
+    .section {
+      background: #1f1f1f;
+      border-radius: 10px;
+      padding: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    select, input, button {
+      width: 100%;
+      padding: 0.6rem;
+      margin-top: 0.5rem;
+      border-radius: 8px;
+      border: none;
+      font-size: 1rem;
+      box-sizing: border-box;
+    }
+    button {
+      background: #4ade80;
+      color: #121212;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    button:hover:not(:disabled) {
+      background: #22c55e;
+    }
+    button:disabled {
+      background: #555;
+      cursor: not-allowed;
+    }
+    #countdown {
+      font-size: 1.1rem;
+      text-align: center;
+      margin-top: 0.5rem;
+      color: #86efac;
+    }
+    #mainMessage {
+      margin-top: 1rem;
+      font-weight: 700;
+      min-height: 1.5em;
+    }
+    label {
+      font-weight: 600;
+      margin-top: 0.8rem;
+      display: block;
+    }
 
-    /* Extra voor dikke rode status tekst als 'Wordt mogelijk afgelast' */
+    /* Status bericht */
     #statusMessage {
       margin-top: 1rem;
       font-weight: 900;
-      color: #dc2626;
-      font-size: 1.2rem;
+      color: #dc2626; /* rood */
+      font-size: 1.3rem;
       text-align: center;
     }
   </style>
@@ -47,10 +81,10 @@
 <h1>DTM Events - Tickets kopen</h1>
 
 <div class="section">
-  <label>Kies een event</label>
-  <select id="eventsSelect"></select>
+  <label for="eventsSelect">Kies een event</label>
+  <select id="eventsSelect" name="eventsSelect"></select>
   <div>
-    <strong>Tickets verkocht:</strong><br>
+    <strong>Tickets verkocht:</strong><br />
     Normaal: <span id="normalCount">0</span> | VIP: <span id="vipCount">0</span>
   </div>
   <div id="statusMessage" aria-live="polite"></div>
@@ -63,7 +97,7 @@
 
 <div class="section">
   <h2>VIP ticket (code vereist)</h2>
-  <label>VIP code:</label>
+  <label for="vipCodeInput">VIP code:</label>
   <input type="text" id="vipCodeInput" autocomplete="off" />
   <div id="vipMessage" style="color:#fbbf24; margin-top:0.5rem;"></div>
   <button id="buyVipBtn" disabled>Koop VIP ticket</button>
@@ -97,93 +131,113 @@
   const countdownEl = document.getElementById('countdown');
   const statusMessage = document.getElementById('statusMessage');
 
-  let currentEvent = null, vipValid = false;
+  let currentEvent = null;
+  let vipValid = false;
 
   function loadEvents() {
-    db.ref('events').on('value', snap => {
-      const evs = snap.val() || {};
+    db.ref('events').on('value', snapshot => {
+      const events = snapshot.val() || {};
       eventsSelect.innerHTML = '';
 
-      for (const k in evs) {
-        const e = evs[k];
-        const dateTime = new Date(e.date).toLocaleString('nl-NL');
+      for (const key in events) {
+        const ev = events[key];
+        const eventDate = new Date(ev.date).toLocaleString('nl-NL');
+        let displayName = `${ev.name} (${eventDate})`;
 
-        // Status ophalen en klassenaam bepalen
-        const status = e.status || '';
-        let statusText = '';
-        if(status === 'mogelijk_afgelast') {
-          statusText = ' (Wordt mogelijk afgelast)';
-        } else if(status === 'afgelast') {
-          statusText = ' (Afgecancelld)';
-        } else if(status === 'voorbij') {
-          statusText = ' (Voorbij)';
+        // Zet status achter event naam in dropdown (zonder styling, want option kan dat niet)
+        if (ev.status === 'mogelijk_afgelast') {
+          displayName += ' (Wordt mogelijk afgelast)';
+        } else if (ev.status === 'afgelast') {
+          displayName += ' (Afgecancelld)';
+        } else if (ev.status === 'voorbij') {
+          displayName += ' (Voorbij)';
         }
 
-        // Let op: in option tag kan je geen HTML styling gebruiken, dus status komt er als tekst bij
-        eventsSelect.innerHTML += `<option value="${k}">${e.name} (${dateTime})${statusText}</option>`;
+        const option = document.createElement('option');
+        option.value = key;
+        option.textContent = displayName;
+        eventsSelect.appendChild(option);
       }
-      eventsSelect.onchange = () => selectEvent(eventsSelect.value);
-      if (!currentEvent && eventsSelect.options.length) selectEvent(eventsSelect.value);
+
+      if (eventsSelect.options.length > 0) {
+        selectEvent(eventsSelect.value);
+      }
     });
+
+    eventsSelect.onchange = () => {
+      selectEvent(eventsSelect.value);
+    };
   }
 
   function selectEvent(key) {
     currentEvent = key;
     vipValid = false;
+    vipCodeInput.value = '';
     vipMessage.textContent = '';
     buyVipBtn.disabled = true;
+    mainMessage.textContent = '';
+    statusMessage.textContent = '';
     normalCount.textContent = '';
     vipCount.textContent = '';
-    statusMessage.textContent = '';
     buyNormalBtn.disabled = false;
 
-    db.ref(`events/${key}`).once('value').then(snap => {
-      const ev = snap.val();
+    if (!key) return;
 
-      const status = ev.status || '';
+    db.ref(`events/${key}`).once('value').then(snapshot => {
+      const ev = snapshot.val();
 
-      // Status bericht tonen (dikke rode tekst) als 'mogelijk_afgelast'
-      if (status === 'mogelijk_afgelast') {
+      normalCount.textContent = ev.tickets.normal || 0;
+      vipCount.textContent = ev.tickets.vip || 0;
+
+      if (!ev) return;
+
+      // Status bericht tonen in rood dik onder dropdown
+      if (ev.status === 'mogelijk_afgelast') {
         statusMessage.textContent = 'WORDT MOGELIJK AFGELAST';
-      } else if (status === 'afgelast') {
+        statusMessage.style.color = '#dc2626'; // rood
+      } else if (ev.status === 'afgelast') {
         statusMessage.textContent = 'EVENT AFGELAST';
+        statusMessage.style.color = '#dc2626'; // rood
       } else {
         statusMessage.textContent = '';
       }
 
-      // Knoppen aan/uit zetten volgens status
-      if (status === 'afgelast') {
+      // Disable knoppen als event is afgelast
+      if (ev.status === 'afgelast') {
         buyNormalBtn.disabled = true;
         buyVipBtn.disabled = true;
-        mainMessage.textContent = 'Dit event is afgecancelld.';
+        mainMessage.textContent = 'Dit event is afgecancelld. Tickets kunnen niet gekocht worden.';
       } else {
         buyNormalBtn.disabled = false;
         buyVipBtn.disabled = !vipValid;
         mainMessage.textContent = '';
       }
 
-      normalCount.textContent = ev.tickets.normal || 0;
-      vipCount.textContent = ev.tickets.vip || 0;
       startCountdown(ev.date);
     });
   }
 
-  let timer;
+  let countdownInterval;
   function startCountdown(dateStr) {
-    clearInterval(timer);
-    const target = new Date(dateStr);
-    timer = setInterval(() => {
-      const diff = target - new Date();
+    clearInterval(countdownInterval);
+    const targetDate = new Date(dateStr);
+
+    countdownInterval = setInterval(() => {
+      const now = new Date();
+      const diff = targetDate - now;
+
       if (diff <= 0) {
         countdownEl.textContent = 'Event is begonnen of voorbij.';
-        clearInterval(timer);
+        clearInterval(countdownInterval);
         return;
       }
-      const d = Math.floor(diff / 86400000),
-            h = Math.floor((diff / 3600000) % 24),
-            m = Math.floor((diff / 60000) % 60),
-            s = Math.floor((diff / 1000) % 60);
-      countdownEl.textContent = `Nog ${d}d ${h}u ${m}m ${s}s`;
+
+      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+      const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
+      const minutes = Math.floor((diff / (1000 * 60)) % 60);
+      const seconds = Math.floor((diff / 1000) % 60);
+
+      countdownEl.textContent = `Nog ${days}d ${hours}u ${minutes}m ${seconds}s`;
     }, 1000);
   }
 
@@ -195,7 +249,7 @@
 
   buyNormalBtn.onclick = () => {
     if (!currentEvent || buyNormalBtn.disabled) return;
-    db.ref(`events/${currentEvent}/tickets/normal`).transaction(c => (c || 0) + 1)
+    db.ref(`events/${currentEvent}/tickets/normal`).transaction(current => (current || 0) + 1)
       .then(() => {
         mainMessage.textContent = '🎉 Normaal ticket gekocht!';
         redirectAfterPurchase();
@@ -210,21 +264,31 @@
     buyVipBtn.disabled = true;
     vipValid = false;
     if (!currentEvent) return;
+
     const code = vipCodeInput.value.trim();
     if (!code) return;
-    db.ref(`vipPasswords/${code}`).once('value').then(snap => {
-      const d = snap.val();
-      if (!d) {
+
+    db.ref(`vipPasswords/${code}`).once('value').then(snapshot => {
+      const data = snapshot.val();
+      if (!data) {
         vipMessage.textContent = 'VIP code ongeldig.';
         return;
       }
-      if ((d.used || 0) >= (d.limit || 0)) {
+      if ((data.used || 0) >= (data.limit || 0)) {
         vipMessage.textContent = 'VIP code limiet bereikt.';
         return;
       }
       vipMessage.textContent = 'VIP code geldig!';
       vipValid = true;
-      buyVipBtn.disabled = false;
+
+      // Alleen enable knop als event niet afgelast is
+      db.ref(`events/${currentEvent}/status`).once('value').then(snap => {
+        if (snap.val() === 'afgelast') {
+          buyVipBtn.disabled = true;
+        } else {
+          buyVipBtn.disabled = false;
+        }
+      });
     });
   };
 
@@ -232,17 +296,18 @@
     if (!vipValid || buyVipBtn.disabled) return;
     const code = vipCodeInput.value.trim();
     const codeRef = db.ref(`vipPasswords/${code}`);
-    const vipRef = db.ref(`events/${currentEvent}/tickets/vip`);
-    codeRef.transaction(d => {
-      if (!d || (d.used || 0) >= (d.limit || 0)) return;
-      d.used = (d.used || 0) + 1;
-      return d;
+    const vipTicketsRef = db.ref(`events/${currentEvent}/tickets/vip`);
+
+    codeRef.transaction(data => {
+      if (!data || (data.used || 0) >= (data.limit || 0)) return;
+      data.used = (data.used || 0) + 1;
+      return data;
     }, (error, committed) => {
       if (!committed) {
-        mainMessage.textContent = 'VIP code ongeldig of gebruikt.';
+        mainMessage.textContent = 'VIP code ongeldig of al gebruikt.';
         return;
       }
-      vipRef.transaction(c => (c || 0) + 1)
+      vipTicketsRef.transaction(current => (current || 0) + 1)
         .then(() => {
           mainMessage.textContent = '🎉 VIP ticket gekocht!';
           redirectAfterPurchase();
