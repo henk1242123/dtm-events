@@ -108,7 +108,7 @@
   const messageEl = document.getElementById('message');
   const logoutBtn = document.getElementById('logoutBtn');
 
-  const CORRECT_PASSWORD = "jouwVeiligWachtwoord123"; // Pas dit aan naar jouw gewenste wachtwoord
+  const CORRECT_PASSWORD = "dtmadmin3"; // Pas dit aan naar jouw gewenste wachtwoord
 
   function showMessage(text, isError = false) {
     messageEl.style.color = isError ? '#f87171' : '#86efac';
@@ -121,7 +121,7 @@
 
   loginBtn.onclick = () => {
     const pw = passwordInput.value;
-    if(pw === dtmadmin3){
+    if(pw === CORRECT_PASSWORD){
       loginSection.style.display = 'none';
       managerSection.style.display = 'block';
       loadEvents();
