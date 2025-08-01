@@ -5,15 +5,92 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>DTM Events Manager</title>
   <style>
-    body { background: #121212; color: #e0e0e0; font-family: sans-serif; max-width: 600px; margin: 3rem auto; padding: 1rem; }
-    h1 { text-align: center; color: #4ade80; margin-bottom: 1rem; }
-    .section { background: #1f1f1f; border-radius: 10px; padding: 1rem; margin-bottom: 1.5rem; }
-    label { font-weight: 600; display: block; margin-top: 1rem; }
-    input, select, button { width: 100%; padding: 0.6rem; margin-top: 0.5rem; border-radius: 8px; border: none; font-size: 1rem; box-sizing: border-box; }
-    button { background: #4ade80; color: #121212; font-weight: 700; cursor: pointer; transition: background 0.2s; }
-    button:hover:not(:disabled) { background: #22c55e; }
-    button:disabled { background: #555; cursor: not-allowed; }
-    #message { margin-top: 1rem; font-weight: 700; min-height: 1.5em; }
+    body {
+      background: #121212;
+      color: #e0e0e0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      max-width: 600px;
+      margin: 3rem auto;
+      padding: 1rem;
+    }
+    h1 {
+      text-align: center;
+      color: #4ade80;
+      margin-bottom: 1.5rem;
+    }
+    .section {
+      background: #1f1f1f;
+      border-radius: 10px;
+      padding: 1rem 1.2rem;
+      margin-bottom: 1.5rem;
+      box-sizing: border-box;
+    }
+    label {
+      font-weight: 600;
+      margin-top: 1rem;
+      display: block;
+    }
+    select, input[type="text"], input[type="datetime-local"], input[type="number"], input[type="password"], button {
+      width: 100%;
+      padding: 0.6rem;
+      margin-top: 0.5rem;
+      border-radius: 8px;
+      border: none;
+      font-size: 1rem;
+      box-sizing: border-box;
+      background: #2a2a2a;
+      color: #e0e0e0;
+      transition: background 0.2s;
+    }
+    select:hover, input:hover {
+      background: #3b3b3b;
+    }
+    button {
+      background: #4ade80;
+      color: #121212;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.2s;
+      margin-top: 1rem;
+    }
+    button:hover:not(:disabled) {
+      background: #22c55e;
+    }
+    button:disabled {
+      background: #555;
+      cursor: not-allowed;
+    }
+    #logoutBtn {
+      background: #ef4444;
+      margin-top: 1rem;
+    }
+    #message {
+      margin-top: 1rem;
+      font-weight: 700;
+      min-height: 1.5em;
+      text-align: center;
+      color: #86efac;
+    }
+    #loginMessage {
+      color: #fbbf24;
+      margin-top: 0.5rem;
+      text-align: center;
+      font-weight: 600;
+    }
+    .btn-inline {
+      display: inline-block;
+      width: auto;
+      margin-top: 0;
+      margin-left: 0.5rem;
+      padding: 0.45rem 1rem;
+      font-weight: 700;
+    }
+    .flex-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+    }
   </style>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
@@ -23,31 +100,35 @@
 <h1>DTM Events Manager</h1>
 
 <div class="section" id="loginSection">
-  <label>Wachtwoord</label>
+  <label for="passwordInput">Wachtwoord</label>
   <input type="password" id="passwordInput" autocomplete="off" />
-  <button id="loginBtn">Login</button>
-  <div id="loginMessage" style="color:#fbbf24; margin-top:0.5rem;"></div>
+  <button id="loginBtn">Inloggen</button>
+  <div id="loginMessage"></div>
 </div>
 
 <div class="section" id="managerSection" style="display:none;">
-  <label>Kies een event</label>
+  <div class="flex-row">
+    <label for="eventsSelect" style="flex-grow:1;">Kies een event</label>
+    <button id="newEventBtn" class="btn-inline">Nieuw event</button>
+  </div>
   <select id="eventsSelect"></select>
-  
-  <label>Event naam</label>
-  <input type="text" id="eventName" />
 
-  <label>Datum en tijd</label>
+  <label for="eventName">Event naam</label>
+  <input type="text" id="eventName" placeholder="Bijv. Zomerfeest 2025" />
+
+  <label for="eventDate">Datum en tijd</label>
   <input type="datetime-local" id="eventDate" />
 
-  <label>Aantal normale tickets</label>
+  <label for="normalTickets">Aantal normale tickets</label>
   <input type="number" id="normalTickets" min="0" />
 
-  <label>Aantal VIP tickets</label>
+  <label for="vipTickets">Aantal VIP tickets</label>
   <input type="number" id="vipTickets" min="0" />
 
   <button id="saveEventBtn">Event opslaan</button>
   <button id="resetTicketsBtn">Tickets resetten naar 0</button>
-  <button id="logoutBtn" style="margin-top:1rem; background:#ef4444;">Uitloggen</button>
+  <button id="deleteEventBtn" style="background:#ef4444; margin-top: 0.5rem;">Event verwijderen</button>
+  <button id="logoutBtn">Uitloggen</button>
 
   <div id="message" aria-live="polite"></div>
 </div>
@@ -66,29 +147,36 @@
   firebase.initializeApp(firebaseConfig);
   const db = firebase.database();
 
+  const ADMIN_PASSWORD = "dtmadmin3";
+
   const passwordInput = document.getElementById('passwordInput');
   const loginBtn = document.getElementById('loginBtn');
   const loginMessage = document.getElementById('loginMessage');
 
+  const loginSection = document.getElementById('loginSection');
   const managerSection = document.getElementById('managerSection');
+
   const eventsSelect = document.getElementById('eventsSelect');
+  const newEventBtn = document.getElementById('newEventBtn');
+
   const eventName = document.getElementById('eventName');
   const eventDate = document.getElementById('eventDate');
   const normalTickets = document.getElementById('normalTickets');
   const vipTickets = document.getElementById('vipTickets');
+
   const saveEventBtn = document.getElementById('saveEventBtn');
   const resetTicketsBtn = document.getElementById('resetTicketsBtn');
+  const deleteEventBtn = document.getElementById('deleteEventBtn');
   const logoutBtn = document.getElementById('logoutBtn');
-  const message = document.getElementById('message');
 
-  const ADMIN_PASSWORD = "dtmadmin3";
+  const message = document.getElementById('message');
 
   let currentEventKey = null;
 
   loginBtn.addEventListener('click', () => {
     if (passwordInput.value === ADMIN_PASSWORD) {
       loginMessage.textContent = '';
-      document.getElementById('loginSection').style.display = 'none';
+      loginSection.style.display = 'none';
       managerSection.style.display = 'block';
       loadEvents();
     } else {
@@ -98,9 +186,10 @@
 
   logoutBtn.addEventListener('click', () => {
     passwordInput.value = '';
-    document.getElementById('loginSection').style.display = 'block';
+    loginSection.style.display = 'block';
     managerSection.style.display = 'none';
     clearForm();
+    message.textContent = '';
     currentEventKey = null;
   });
 
@@ -111,7 +200,7 @@
       eventsSelect.innerHTML = '';
       for (const key in evs) {
         const e = evs[key];
-        const dateStr = new Date(e.date).toLocaleString('nl-NL');
+        const dateStr = new Date(e.date).toLocaleString('nl-NL', {year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit'});
         eventsSelect.innerHTML += `<option value="${key}">${e.name} (${dateStr})</option>`;
       }
       if (eventsSelect.options.length > 0) {
@@ -128,27 +217,32 @@
     selectEvent(eventsSelect.value);
   });
 
+  newEventBtn.addEventListener('click', () => {
+    currentEventKey = null;
+    clearForm();
+    eventsSelect.selectedIndex = -1;
+    message.textContent = 'Maak een nieuw event aan en klik op opslaan.';
+  });
+
   function selectEvent(key) {
-    currentEventKey = key;
-    message.textContent = '';
     if (!key) {
       clearForm();
+      currentEventKey = null;
+      message.textContent = '';
       return;
     }
+    currentEventKey = key;
+    message.textContent = '';
     db.ref('events/' + key).once('value').then(snap => {
       const e = snap.val();
       eventName.value = e.name || '';
-      eventDate.value = e.date ? e.date.substring(0, 16) : '';
+      eventDate.value = e.date ? e.date.substring(0,16) : '';
       normalTickets.value = e.tickets?.normal || 0;
       vipTickets.value = e.tickets?.vip || 0;
     });
   }
 
   saveEventBtn.addEventListener('click', () => {
-    if (!currentEventKey) {
-      message.textContent = 'Selecteer eerst een event.';
-      return;
-    }
     const name = eventName.value.trim();
     const date = eventDate.value;
     const normal = parseInt(normalTickets.value) || 0;
@@ -166,19 +260,30 @@
     const eventData = {
       name: name,
       date: new Date(date).toISOString(),
-      tickets: {
-        normal: normal,
-        vip: vip
-      }
+      tickets: { normal, vip }
     };
 
-    db.ref('events/' + currentEventKey).set(eventData).then(() => {
-      message.textContent = 'Event opgeslagen!';
-      loadEvents();
-      eventsSelect.value = currentEventKey;
-    }).catch(err => {
-      message.textContent = 'Fout bij opslaan: ' + err.message;
-    });
+    if (currentEventKey) {
+      // update bestaand event
+      db.ref('events/' + currentEventKey).set(eventData)
+        .then(() => {
+          message.textContent = 'Event bijgewerkt!';
+          loadEvents();
+          eventsSelect.value = currentEventKey;
+        })
+        .catch(e => message.textContent = 'Fout bij opslaan: ' + e.message);
+    } else {
+      // nieuw event aanmaken
+      const newKey = db.ref('events').push().key;
+      db.ref('events/' + newKey).set(eventData)
+        .then(() => {
+          message.textContent = 'Nieuw event aangemaakt!';
+          loadEvents();
+          currentEventKey = newKey;
+          eventsSelect.value = newKey;
+        })
+        .catch(e => message.textContent = 'Fout bij aanmaken: ' + e.message);
+    }
   });
 
   resetTicketsBtn.addEventListener('click', () => {
@@ -186,13 +291,30 @@
       message.textContent = 'Selecteer eerst een event om te resetten.';
       return;
     }
-    db.ref(`events/${currentEventKey}/tickets`).set({normal: 0, vip: 0}).then(() => {
-      message.textContent = 'Tickets gereset naar 0.';
-      normalTickets.value = 0;
-      vipTickets.value = 0;
-    }).catch(err => {
-      message.textContent = 'Fout bij resetten tickets: ' + err.message;
-    });
+    db.ref(`events/${currentEventKey}/tickets`).set({normal:0, vip:0})
+      .then(() => {
+        message.textContent = 'Tickets gereset naar 0.';
+        normalTickets.value = 0;
+        vipTickets.value = 0;
+      })
+      .catch(e => message.textContent = 'Fout bij resetten: ' + e.message);
+  });
+
+  deleteEventBtn.addEventListener('click', () => {
+    if (!currentEventKey) {
+      message.textContent = 'Selecteer eerst een event om te verwijderen.';
+      return;
+    }
+    if (confirm('Weet je zeker dat je dit event wilt verwijderen? Dit kan niet ongedaan gemaakt worden.')) {
+      db.ref('events/' + currentEventKey).remove()
+        .then(() => {
+          message.textContent = 'Event verwijderd.';
+          currentEventKey = null;
+          loadEvents();
+          clearForm();
+        })
+        .catch(e => message.textContent = 'Fout bij verwijderen: ' + e.message);
+    }
   });
 
   function clearForm() {
@@ -200,7 +322,6 @@
     eventDate.value = '';
     normalTickets.value = 0;
     vipTickets.value = 0;
-    message.textContent = '';
   }
 </script>
 
