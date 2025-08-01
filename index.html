@@ -23,7 +23,31 @@
       border-radius: 10px;
       padding: 1rem;
       margin-bottom: 1.5rem;
+      position: relative;
+      overflow: hidden;
     }
+
+    /* Schuine rode lijn als afgelast */
+    .section.afgelast::before {
+      content: "";
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: repeating-linear-gradient(
+        45deg,
+        transparent,
+        transparent 10px,
+        rgba(220, 38, 38, 0.5) 10px,
+        rgba(220, 38, 38, 0.5) 20px
+      );
+      pointer-events: none;
+      z-index: 10;
+      mix-blend-mode: multiply;
+      opacity: 0.6;
+    }
+
     select, input, button {
       width: 100%;
       padding: 0.6rem;
@@ -70,6 +94,16 @@
       font-weight: 900;
       font-size: 1.3rem;
       text-align: center;
+      position: relative;
+      z-index: 20;
+    }
+
+    /* Waarschuwingstekst onder tickets bij mogelijk afgelast */
+    #possibleCancelWarning {
+      color: #dc2626; /* rood */
+      font-weight: 700;
+      margin-top: 0.8rem;
+      text-align: center;
     }
   </style>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
@@ -79,7 +113,7 @@
 
 <h1>DTM Events - Tickets kopen</h1>
 
-<div class="section">
+<div id="eventSection" class="section">
   <label for="eventsSelect">Kies een event</label>
   <select id="eventsSelect" name="eventsSelect"></select>
   <div>
@@ -89,18 +123,21 @@
   <div id="statusMessage" aria-live="polite"></div>
 </div>
 
-<div class="section">
+<div class="section" id="normalTicketSection">
   <h2>Normaal ticket (gratis)</h2>
   <button id="buyNormalBtn">Koop normaal ticket</button>
 </div>
 
-<div class="section">
+<div class="section" id="vipTicketSection">
   <h2>VIP ticket (code vereist)</h2>
   <label for="vipCodeInput">VIP code:</label>
   <input type="text" id="vipCodeInput" autocomplete="off" />
   <div id="vipMessage" style="color:#fbbf24; margin-top:0.5rem;"></div>
   <button id="buyVipBtn" disabled>Koop VIP ticket</button>
 </div>
+
+<!-- Waarschuwingstekst mogelijk afgelast -->
+<div id="possibleCancelWarning" role="alert" aria-live="polite"></div>
 
 <div id="mainMessage" aria-live="polite"></div>
 <div id="countdown"></div>
@@ -129,6 +166,8 @@
   const vipCount = document.getElementById('vipCount');
   const countdownEl = document.getElementById('countdown');
   const statusMessage = document.getElementById('statusMessage');
+  const eventSection = document.getElementById('eventSection');
+  const possibleCancelWarning = document.getElementById('possibleCancelWarning');
 
   let currentEvent = null;
   let vipValid = false;
@@ -179,6 +218,8 @@
     normalCount.textContent = '';
     vipCount.textContent = '';
     buyNormalBtn.disabled = false;
+    possibleCancelWarning.textContent = '';
+    eventSection.classList.remove('afgelast');
 
     if (!key) return;
 
@@ -193,14 +234,17 @@
       if (ev.status === 'mogelijk_afgelast') {
         statusMessage.textContent = 'WORDT MOGELIJK AFGELAST';
         statusMessage.style.color = '#dc2626'; // rood
+        possibleCancelWarning.textContent = 'Let op: dit event kan mogelijk afgelast worden.';
       } else if (ev.status === 'afgelast') {
         statusMessage.textContent = 'EVENT AFGELAST';
         statusMessage.style.color = '#dc2626'; // rood
+        eventSection.classList.add('afgelast');
       } else if (ev.status === 'voorbij') {
         statusMessage.textContent = 'EVENT IS VOORBIJ';
         statusMessage.style.color = '#fbbf24'; // geel
       } else {
         statusMessage.textContent = '';
+        possibleCancelWarning.textContent = '';
       }
 
       // Knoppen in- of uitschakelen op basis van status
