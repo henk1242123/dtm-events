@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>DTM Events - Tickets kopen</title>
-<link rel="icon" type="image/png" href="dtm-logo.png" />
+  <link rel="icon" type="image/png" href="dtm-logo.png" />
   <style>
     body { background: #121212; color: #e0e0e0; font-family: sans-serif; max-width: 600px; margin: 3rem auto; padding: 1rem; }
     h1 { text-align: center; color: #4ade80; margin-bottom: 1rem; }
@@ -25,6 +25,7 @@
       border-radius: 6px;
       font-size: 0.85rem;
       vertical-align: middle;
+      display: inline-block;
     }
     .mogelijk_afgelast { background: #facc15; color: #1f1f1f; } /* geel */
     .afgelast { background: #dc2626; color: #fff; } /* rood */
@@ -40,6 +41,8 @@
 <div class="section">
   <label>Kies een event</label>
   <select id="eventsSelect"></select>
+  <!-- Status komt hier -->
+  <div id="statusContainer" style="margin-top: 0.3rem;"></div>
   <div>
     <strong>Tickets verkocht:</strong><br>
     Normaal: <span id="normalCount">0</span> | VIP: <span id="vipCount">0</span>
@@ -85,6 +88,7 @@
   const normalCount = document.getElementById('normalCount');
   const vipCount = document.getElementById('vipCount');
   const countdownEl = document.getElementById('countdown');
+  const statusContainer = document.getElementById('statusContainer');
 
   let currentEvent = null, vipValid = false;
 
@@ -96,23 +100,24 @@
       for (const k in evs) {
         const e = evs[k];
         const dateTime = new Date(e.date).toLocaleString('nl-NL');
-        
-        // Status ophalen en klassenaam bepalen
-        const status = e.status || ''; // status veld uit DB
-        let statusHtml = '';
-        if(status === 'mogelijk_afgelast') {
-          statusHtml = `<span class="status mogelijk_afgelast">Mogelijk afgelast</span>`;
-        } else if(status === 'afgelast') {
-          statusHtml = `<span class="status afgelast">Afgecancelld</span>`;
-        } else if(status === 'voorbij') {
-          statusHtml = `<span class="status voorbij">Voorbij</span>`;
-        }
-
-        eventsSelect.innerHTML += `<option value="${k}">${e.name} (${dateTime}) ${statusHtml}</option>`;
+        // Alleen naam en datum in option (status niet in option want HTML werkt niet daar)
+        eventsSelect.innerHTML += `<option value="${k}">${e.name} (${dateTime})</option>`;
       }
       eventsSelect.onchange = () => selectEvent(eventsSelect.value);
       if (!currentEvent && eventsSelect.options.length) selectEvent(eventsSelect.value);
     });
+  }
+
+  function updateStatusDisplay(status) {
+    let html = '';
+    if(status === 'mogelijk_afgelast') {
+      html = `<span class="status mogelijk_afgelast">Mogelijk afgelast</span>`;
+    } else if(status === 'afgelast') {
+      html = `<span class="status afgelast">Afgecancelld</span>`;
+    } else if(status === 'voorbij') {
+      html = `<span class="status voorbij">Voorbij</span>`;
+    }
+    statusContainer.innerHTML = html;
   }
 
   function selectEvent(key) {
@@ -124,6 +129,8 @@
     vipCount.textContent = '';
     db.ref(`events/${key}`).once('value').then(snap => {
       const ev = snap.val();
+
+      updateStatusDisplay(ev.status || '');
 
       // Status gebruiken om knoppen te disablen als event afgelast of voorbij is
       const status = ev.status || '';
