@@ -1,23 +1,24 @@
+<!-- index.html -->
 <!DOCTYPE html>
 <html lang="nl">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>DTM Events - Tickets kopen</title>
-<style>
-  body { background: #121212; color: #e0e0e0; font-family: sans-serif; max-width: 600px; margin: 3rem auto; padding: 1rem; }
-  h1 { text-align: center; color: #4ade80; margin-bottom: 1rem; }
-  .section { background: #1f1f1f; border-radius: 10px; padding: 1rem; margin-bottom: 1.5rem; }
-  select, input, button { width: 100%; padding: 0.6rem; margin-top: 0.5rem; border-radius: 8px; border: none; font-size: 1rem; box-sizing: border-box; }
-  button { background: #4ade80; color: #121212; font-weight: 700; cursor: pointer; transition: background 0.2s; }
-  button:hover:not(:disabled) { background: #22c55e; }
-  button:disabled { background: #555; cursor: not-allowed; }
-  #countdown { font-size: 1.1rem; text-align: center; margin-top: 0.5rem; color: #86efac; }
-  #mainMessage { margin-top: 1rem; font-weight: 700; min-height: 1.5em; }
-  label { font-weight: 600; margin-top: 0.8rem; display: block; }
-</style>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>DTM Events - Tickets kopen</title>
+  <style>
+    body { background: #121212; color: #e0e0e0; font-family: sans-serif; max-width: 600px; margin: 3rem auto; padding: 1rem; }
+    h1 { text-align: center; color: #4ade80; margin-bottom: 1rem; }
+    .section { background: #1f1f1f; border-radius: 10px; padding: 1rem; margin-bottom: 1.5rem; }
+    select, input, button { width: 100%; padding: 0.6rem; margin-top: 0.5rem; border-radius: 8px; border: none; font-size: 1rem; box-sizing: border-box; }
+    button { background: #4ade80; color: #121212; font-weight: 700; cursor: pointer; transition: background 0.2s; }
+    button:hover:not(:disabled) { background: #22c55e; }
+    button:disabled { background: #555; cursor: not-allowed; }
+    #countdown { font-size: 1.1rem; text-align: center; margin-top: 0.5rem; color: #86efac; }
+    #mainMessage { margin-top: 1rem; font-weight: 700; min-height: 1.5em; }
+    label { font-weight: 600; margin-top: 0.8rem; display: block; }
+  </style>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 </head>
 <body>
 
@@ -46,7 +47,6 @@
 </div>
 
 <div id="mainMessage" aria-live="polite"></div>
-
 <div id="countdown"></div>
 
 <script>
@@ -55,7 +55,7 @@
     authDomain: "dtm-evemts.firebaseapp.com",
     databaseURL: "https://dtm-evemts-default-rtdb.europe-west1.firebasedatabase.app",
     projectId: "dtm-evemts",
-    storageBucket: "dtm-evemts.firebasestorage.app",
+    storageBucket: "dtm-evemts.appspot.com",
     messagingSenderId: "...",
     appId: "...",
     measurementId: "..."
@@ -79,7 +79,8 @@
       eventsSelect.innerHTML = '';
       for (const k in evs) {
         const e = evs[k];
-        eventsSelect.innerHTML += `<option value="${k}">${e.name} (${new Date(e.date).toLocaleDateString('nl-NL')})</option>`;
+        const dateTime = new Date(e.date).toLocaleString('nl-NL');
+        eventsSelect.innerHTML += `<option value="${k}">${e.name} (${dateTime})</option>`;
       }
       eventsSelect.onchange = () => selectEvent(eventsSelect.value);
       if (!currentEvent && eventsSelect.options.length) selectEvent(eventsSelect.value);
@@ -99,18 +100,18 @@
   let timer;
   function startCountdown(dateStr) {
     clearInterval(timer);
+    const target = new Date(dateStr);
     timer = setInterval(() => {
-      const diff = new Date(dateStr) - new Date();
+      const diff = target - new Date();
       if (diff <= 0) { countdownEl.textContent = 'Event is begonnen of voorbij.'; clearInterval(timer); return; }
-      const d = Math.floor(diff/86400000), h = Math.floor((diff/3600000)%24), m = Math.floor((diff/60000)%60), s = Math.floor((diff/1000)%60);
+      const d = Math.floor(diff / 86400000), h = Math.floor((diff / 3600000) % 24), m = Math.floor((diff / 60000) % 60), s = Math.floor((diff / 1000) % 60);
       countdownEl.textContent = `Nog ${d}d ${h}u ${m}m ${s}s`;
     }, 1000);
-    timer();
   }
 
   buyNormalBtn.onclick = () => {
     if (!currentEvent) return;
-    db.ref(`events/${currentEvent}/tickets/normal`).transaction(c => (c||0)+1)
+    db.ref(`events/${currentEvent}/tickets/normal`).transaction(c => (c || 0) + 1)
       .then(() => mainMessage.textContent = '🎉 Normaal ticket gekocht!');
   };
 
@@ -124,7 +125,7 @@
     db.ref(`vipPasswords/${code}`).once('value').then(snap => {
       const d = snap.val();
       if (!d) { vipMessage.textContent = 'VIP code ongeldig.'; return; }
-      if ((d.used||0) >= (d.limit||0)) { vipMessage.textContent = 'VIP code limiet bereikt.'; return; }
+      if ((d.used || 0) >= (d.limit || 0)) { vipMessage.textContent = 'VIP code limiet bereikt.'; return; }
       vipMessage.textContent = 'VIP code geldig!';
       vipValid = true; buyVipBtn.disabled = false;
     });
@@ -136,16 +137,22 @@
     const codeRef = db.ref(`vipPasswords/${code}`);
     const vipRef = db.ref(`events/${currentEvent}/tickets/vip`);
     codeRef.transaction(d => {
-      if (!d || (d.used||0) >= (d.limit||0)) return;
-      d.used = (d.used||0)+1; return d;
-    }, (e,comm)=>
-      { if (!comm) { mainMessage.textContent = 'VIP code ongeldig of gebruikt.'; return; }
-        vipRef.transaction(c => (c||0)+1)
-          .then(() => mainMessage.textContent = '🎉 VIP ticket gekocht!')
-          .then(() => selectEvent(currentEvent)); });
+      if (!d || (d.used || 0) >= (d.limit || 0)) return;
+      d.used = (d.used || 0) + 1; return d;
+    }, (e, comm) => {
+      if (!comm) { mainMessage.textContent = 'VIP code ongeldig of gebruikt.'; return; }
+      vipRef.transaction(c => (c || 0) + 1)
+        .then(() => mainMessage.textContent = '🎉 VIP ticket gekocht!')
+        .then(() => selectEvent(currentEvent));
+    });
   };
 
-  window.addEventListener('keydown', e => { if (e.ctrlKey && (e.key==='l'||e.key==='L')) { e.preventDefault(); window.location = 'manager.html'; }});
+  window.addEventListener('keydown', e => {
+    if (e.ctrlKey && (e.key === 'l' || e.key === 'L')) {
+      e.preventDefault(); window.location = 'manager.html';
+    }
+  });
+
   loadEvents();
 </script>
 
