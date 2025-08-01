@@ -49,16 +49,15 @@
 <div id="countdown"></div>
 
 <script>
-  // Vervang ... met jouw Firebase info
   const firebaseConfig = {
-    apiKey: "...",
+    apiKey: "AIzaSyAq2hnWZnhoMzVC_NZ3efND3xEkijRy23k",
     authDomain: "dtm-evemts.firebaseapp.com",
     databaseURL: "https://dtm-evemts-default-rtdb.europe-west1.firebasedatabase.app",
     projectId: "dtm-evemts",
-    storageBucket: "dtm-evemts.appspot.com",
-    messagingSenderId: "...",
-    appId: "...",
-    measurementId: "..."
+    storageBucket: "dtm-evemts.firebasestorage.app",
+    messagingSenderId: "673592896357",
+    appId: "1:673592896357:web:4aa0d051ad738c12a80f8c",
+    measurementId: "G-GFRH4KY8GF"
   };
   firebase.initializeApp(firebaseConfig);
   const db = firebase.database();
@@ -94,7 +93,8 @@
     vipValid = false;
     vipMessage.textContent = '';
     buyVipBtn.disabled = true;
-    normalCount.textContent = vipCount.textContent = '';
+    normalCount.textContent = '';
+    vipCount.textContent = '';
     db.ref(`events/${key}`).once('value').then(snap => {
       const ev = snap.val();
       normalCount.textContent = ev.tickets.normal || 0;
@@ -122,12 +122,21 @@
     }, 1000);
   }
 
+  function redirectAfterPurchase() {
+    setTimeout(() => {
+      window.location.href = 'bedankt.html';
+    }, 2000);
+  }
+
   buyNormalBtn.onclick = () => {
     if (!currentEvent) return;
     db.ref(`events/${currentEvent}/tickets/normal`).transaction(c => (c || 0) + 1)
-      .then(result => {
-        const newCount = result.snapshot.val();
-        window.location.href = `bedankt.html?event=${currentEvent}&type=normal&num=${newCount}`;
+      .then(() => {
+        mainMessage.textContent = '🎉 Normaal ticket gekocht!';
+        redirectAfterPurchase();
+      })
+      .catch(() => {
+        mainMessage.textContent = 'Er is iets misgegaan bij het kopen.';
       });
   };
 
@@ -140,8 +149,14 @@
     if (!code) return;
     db.ref(`vipPasswords/${code}`).once('value').then(snap => {
       const d = snap.val();
-      if (!d) { vipMessage.textContent = 'VIP code ongeldig.'; return; }
-      if ((d.used || 0) >= (d.limit || 0)) { vipMessage.textContent = 'VIP code limiet bereikt.'; return; }
+      if (!d) {
+        vipMessage.textContent = 'VIP code ongeldig.';
+        return;
+      }
+      if ((d.used || 0) >= (d.limit || 0)) {
+        vipMessage.textContent = 'VIP code limiet bereikt.';
+        return;
+      }
       vipMessage.textContent = 'VIP code geldig!';
       vipValid = true;
       buyVipBtn.disabled = false;
@@ -163,10 +178,11 @@
         return;
       }
       vipRef.transaction(c => (c || 0) + 1)
-        .then(result => {
-          const newCount = result.snapshot.val();
-          window.location.href = `bedankt.html?event=${currentEvent}&type=vip&num=${newCount}`;
-        });
+        .then(() => {
+          mainMessage.textContent = '🎉 VIP ticket gekocht!';
+          redirectAfterPurchase();
+        })
+        .then(() => selectEvent(currentEvent));
     });
   };
 
