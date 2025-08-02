@@ -5,15 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Bedankt voor je aankoop!</title>
   <link rel="icon" type="image/png" href="dtm-logo.png" />
-  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js"></script>
   <style>
     body {
       background: #121212;
       color: #4ade80;
       font-family: sans-serif;
       max-width: 600px;
-      margin: 5rem auto;
+      margin: 3rem auto;
       padding: 1rem;
       text-align: center;
     }
@@ -21,7 +19,10 @@
     p { font-size: 1.2rem; }
     a { color: #22c55e; text-decoration: none; font-weight: 700; }
     a:hover { text-decoration: underline; }
-    .stars input { display: none; }
+
+    .stars input {
+      display: none;
+    }
     .stars label {
       font-size: 2rem;
       color: gray;
@@ -32,30 +33,28 @@
     .stars label:hover ~ label {
       color: gold;
     }
-    .review-form, .average {
-      margin-top: 2rem;
-      text-align: left;
-    }
     textarea {
       width: 100%;
       padding: 0.5rem;
-      margin-top: 0.5rem;
-      resize: vertical;
-      background: #1f1f1f;
-      color: #fff;
-      border: 1px solid #333;
+      margin: 1rem 0;
+      border-radius: 5px;
+      resize: none;
     }
     button {
-      margin-top: 1rem;
       background: #22c55e;
-      color: black;
+      color: white;
       border: none;
-      padding: 0.5rem 1rem;
+      padding: 0.6rem 1.2rem;
+      border-radius: 5px;
       cursor: pointer;
+      font-weight: bold;
     }
     .review-entry {
-      border-top: 1px solid #333;
-      padding: 1rem 0;
+      text-align: left;
+      background: #1e1e1e;
+      padding: 0.8rem;
+      margin: 1rem 0;
+      border-radius: 8px;
     }
   </style>
 </head>
@@ -64,26 +63,26 @@
   <p>We hebben je ticket geregistreerd. We zien je graag bij het event!</p>
   <p><a href="index.html">Terug naar ticketpagina</a></p>
 
-  <div class="review-form">
-    <h2>Laat een review achter</h2>
-    <div class="stars">
-      <input type="radio" id="star5" name="rating" value="5"><label for="star5">★</label>
-      <input type="radio" id="star4" name="rating" value="4"><label for="star4">★</label>
-      <input type="radio" id="star3" name="rating" value="3"><label for="star3">★</label>
-      <input type="radio" id="star2" name="rating" value="2"><label for="star2">★</label>
-      <input type="radio" id="star1" name="rating" value="1"><label for="star1">★</label>
-    </div>
-    <textarea id="reviewText" rows="4" placeholder="Vertel ons wat je vond..."></textarea>
-    <button onclick="submitReview()">Verzenden</button>
+  <hr><br>
+  <h2>Laat een review achter</h2>
+  <div class="stars">
+    <input type="radio" name="rating" id="star5" value="5"><label for="star5">★</label>
+    <input type="radio" name="rating" id="star4" value="4"><label for="star4">★</label>
+    <input type="radio" name="rating" id="star3" value="3"><label for="star3">★</label>
+    <input type="radio" name="rating" id="star2" value="2"><label for="star2">★</label>
+    <input type="radio" name="rating" id="star1" value="1"><label for="star1">★</label>
   </div>
+  <textarea id="reviewText" rows="3" placeholder="Typ hier je feedback..."></textarea>
+  <button onclick="submitReview()">Verzenden</button>
 
-  <div class="average">
-    <h2>Gemiddelde beoordeling: <span id="averageScore">–</span> ★</h2>
-    <div id="reviews"></div>
-  </div>
+  <br><br><h3>Gemiddelde score: <span id="averageScore">–</span>★</h3>
+  <div id="reviews"></div>
+
+  <!-- Firebase compat libraries -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
 
   <script>
-    // Firebase config van jou
     const firebaseConfig = {
       apiKey: "AIzaSyAq2hnWZnhoMzVC_NZ3efND3xEkijRy23k",
       authDomain: "dtm-evemts.firebaseapp.com",
@@ -95,17 +94,15 @@
       measurementId: "G-GFRH4KY8GF"
     };
 
-    const app = firebase.initializeApp(firebaseConfig);
+    firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
     function submitReview() {
       const rating = document.querySelector('input[name="rating"]:checked');
       const text = document.getElementById('reviewText').value.trim();
 
-      if (!rating) {
-        alert("Selecteer een sterbeoordeling.");
-        return;
-      }
+      if (!rating) return alert("Selecteer een aantal sterren.");
+      if (!text) return alert("Typ een bericht bij je review.");
 
       const review = {
         rating: parseInt(rating.value),
@@ -113,9 +110,15 @@
         timestamp: Date.now()
       };
 
-      db.ref("reviews").push(review);
-      document.getElementById('reviewText').value = "";
-      document.querySelectorAll('input[name="rating"]').forEach(r => r.checked = false);
+      db.ref("reviews").push(review, (error) => {
+        if (error) {
+          alert("Er ging iets mis. Probeer opnieuw.");
+        } else {
+          alert("Bedankt voor je review!");
+          document.getElementById("reviewText").value = "";
+          document.querySelectorAll('input[name="rating"]').forEach(el => el.checked = false);
+        }
+      });
     }
 
     function loadReviews() {
